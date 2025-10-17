@@ -8,6 +8,7 @@ from .models import *
 from .forms import *
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
+from django.conf import settings
 
 
 def register(request):
@@ -60,43 +61,128 @@ def is_university(user):
 
 def home(request):
     try:
-        vacancies = Vacancy.objects.filter(status='published')[:6]
-        internships = Internship.objects.filter(status='published')[:6]
-    except models.OperationalError:
-        # Если таблицы еще не созданы
-        vacancies = []
-        internships = []
-        messages.info(request, "База данных инициализируется. Некоторые функции могут быть временно недоступны.")
+        vacancies = Vacancy.objects.filter(status='published')[:3]
+        internships = Internship.objects.filter(status='published')[:3]
+
+        # Создаем объединенный список для главной страницы
+        recent_items = []
+
+        for vacancy in vacancies:
+            recent_items.append({
+                'type': 'vacancy',
+                'id': vacancy.id,
+                'title': vacancy.title,
+                'company': vacancy.company.name,
+                'description': vacancy.description,
+                'salary': vacancy.salary,
+            })
+
+        for internship in internships:
+            recent_items.append({
+                'type': 'internship',
+                'id': internship.id,
+                'title': internship.title,
+                'company': internship.institution.name,
+                'description': internship.description,
+            })
+
+        # Сортируем по дате (можно добавить дату создания)
+        recent_items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
+    except Exception as e:
+        recent_items = []
+        if settings.DEBUG:
+            messages.info(request, f'Отладочная информация: {e}')
 
     context = {
-        'vacancies': vacancies,
-        'internships': internships,
+        'recent_items': recent_items,
+        'debug': settings.DEBUG,
     }
     return render(request, 'career_app/home.html', context)
 
 
 def vacancy_list(request):
+    # Получаем все опубликованные вакансии и стажировки
     vacancies = Vacancy.objects.filter(status='published')
+    internships = Internship.objects.filter(status='published')
 
-    # Фильтрация
+    # Параметры фильтрации из GET-запроса
+    filter_type = request.GET.get('type', 'all')  # all, vacancies, internships
+    category_id = request.GET.get('category', '')
+
+    # Объединяем данные в один список с пометкой типа
+    items = []
+
+    # Добавляем вакансии
+    for vacancy in vacancies:
+        items.append({
+            'type': 'vacancy',
+            'object': vacancy,
+            'title': vacancy.title,
+            'company': vacancy.company.name,
+            'description': vacancy.description,
+            'salary': vacancy.salary,
+            'category': vacancy.category,
+            'created_at': vacancy.created_at,
+            'id': vacancy.id,
+        })
+
+    # Добавляем стажировки
+    for internship in internships:
+        items.append({
+            'type': 'internship',
+            'object': internship,
+            'title': internship.title,
+            'company': internship.institution.name,
+            'description': internship.description,
+            'specialty': internship.specialty,
+            'student_count': internship.student_count,
+            'period': internship.period,
+            'category': internship.category,
+            'created_at': internship.created_at,
+            'id': internship.id,
+        })
+
+    # Применяем фильтры
+    if filter_type == 'vacancies':
+        items = [item for item in items if item['type'] == 'vacancy']
+    elif filter_type == 'internships':
+        items = [item for item in items if item['type'] == 'internship']
+
+    # Фильтр по категории
+    if category_id:
+        items = [item for item in items if item['category'] and item['category'].id == int(category_id)]
+
+    # Поиск
     query = request.GET.get('q')
     if query:
-        vacancies = vacancies.filter(
-            Q(title__icontains=query) |
-            Q(description__icontains=query) |
-            Q(company__name__icontains=query)
-        )
+        items = [item for item in items if
+                 query.lower() in item['title'].lower() or
+                 query.lower() in item['description'].lower() or
+                 query.lower() in item['company'].lower()]
 
-    paginator = Paginator(vacancies, 10)
+    # Сортировка по дате создания (новые сначала)
+    items.sort(key=lambda x: x['created_at'], reverse=True)
+
+    # Пагинация
+    paginator = Paginator(items, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    # Получаем все категории для фильтра
+    categories = Category.objects.all()
 
     context = {
         'page_obj': page_obj,
         'query': query,
+        'filter_type': filter_type,
+        'category_id': category_id,
+        'categories': categories,
+        'total_count': len(items),
+        'vacancies_count': len([item for item in items if item['type'] == 'vacancy']),
+        'internships_count': len([item for item in items if item['type'] == 'internship']),
     }
     return render(request, 'career_app/vacancy_list.html', context)
-
 
 def vacancy_detail(request, pk):
     try:
@@ -183,6 +269,47 @@ def internship_list(request):
     return render(request, 'career_app/internship_list.html', context)
 
 
+def internship_detail(request, pk):
+    try:
+        internship = get_object_or_404(Internship, pk=pk, status='published')
+    except Internship.DoesNotExist:
+        messages.error(request, 'Стажировка не найдена или еще не опубликована.')
+        return redirect('vacancy_list')
+
+    # Проверяем, может ли пользователь откликаться на стажировку
+    can_apply = False
+    applicant = None
+
+    if request.user.is_authenticated:
+        user_profile = request.user.userprofile
+        # На стажировки могут откликаться только соискатели
+        if user_profile.role == 'applicant':
+            try:
+                applicant = request.user.applicant
+                can_apply = True
+            except Applicant.DoesNotExist:
+                can_apply = False
+
+    if request.method == 'POST' and can_apply:
+        form = InternshipResponseForm(request.POST)
+        if form.is_valid():
+            response = form.save(commit=False)
+            response.internship = internship
+            response.applicant = applicant
+            response.save()
+            messages.success(request, 'Ваш отклик на стажировку успешно отправлен!')
+            return redirect('internship_detail', pk=pk)
+    else:
+        form = InternshipResponseForm()
+
+    context = {
+        'internship': internship,
+        'form': form,
+        'can_apply': can_apply,
+        'applicant': applicant,
+    }
+    return render(request, 'career_app/internship_detail.html', context)
+
 @login_required
 def dashboard(request):
     try:
@@ -267,21 +394,24 @@ def university_dashboard(request):
     }
     return render(request, 'career_app/university_dashboard.html', context)
 
+
 @login_required
 def applicant_dashboard(request):
     try:
         applicant = request.user.applicant
         applications = Application.objects.filter(applicant=applicant)
+        internship_responses = InternshipResponse.objects.filter(applicant=applicant)
     except Applicant.DoesNotExist:
         applicant = None
         applications = []
+        internship_responses = []
 
     context = {
         'applicant': applicant,
         'applications': applications,
+        'internship_responses': internship_responses,
     }
     return render(request, 'career_app/applicant_dashboard.html', context)
-
 
 @login_required
 @user_passes_test(is_hr)

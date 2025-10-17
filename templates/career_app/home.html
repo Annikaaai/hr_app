@@ -6,44 +6,49 @@
         <h1 class="display-4 mb-4">Техноработа</h1>
         <p class="lead mb-4">Центр карьеры ОЭЗ «Технополис Москва»</p>
         <a href="{% url 'vacancy_list' %}" class="btn btn-light btn-lg me-2">Найти работу</a>
-        <a href="{% url 'internship_list' %}" class="btn btn-outline-light btn-lg">Стажировки</a>
+        <a href="{% url 'vacancy_list' %}?type=internships" class="btn btn-outline-light btn-lg">Стажировки</a>
     </div>
 </div>
 
 <div class="container mt-5">
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <h2>Последние вакансии</h2>
-            {% for vacancy in vacancies %}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">{{ vacancy.title }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">{{ vacancy.company.name }}</h6>
-                    <p class="card-text">{{ vacancy.description|truncatewords:30 }}</p>
-                    <a href="{% url 'vacancy_detail' vacancy.pk %}" class="btn btn-primary">Подробнее</a>
-                </div>
-            </div>
-            {% empty %}
-            <p>Пока нет активных вакансий</p>
-            {% endfor %}
-            <a href="{% url 'vacancy_list' %}" class="btn btn-outline-primary">Все вакансии</a>
-        </div>
 
-        <div class="col-md-6">
-            <h2>Стажировки</h2>
-            {% for internship in internships %}
+            {% for item in recent_items %}
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">{{ internship.title }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">{{ internship.institution.name }}</h6>
-                    <p class="card-text">{{ internship.description|truncatewords:30 }}</p>
-                    <span class="badge bg-secondary">{{ internship.specialty }}</span>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="card-title">
+                                {{ item.title }}
+                                <span class="badge {% if item.type == 'vacancy' %}bg-primary{% else %}bg-success{% endif %} ms-2">
+                                    {% if item.type == 'vacancy' %}Вакансия{% else %}Стажировка{% endif %}
+                                </span>
+                            </h5>
+                            <h6 class="card-subtitle mb-2 text-muted">{{ item.company }}</h6>
+                            <p class="card-text">{{ item.description|truncatewords:30 }}</p>
+                            {% if item.type == 'vacancy' and item.salary %}
+                            <p class="card-text"><strong>Зарплата:</strong> {{ item.salary }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if item.type == 'vacancy' %}
+                                <a href="{% url 'vacancy_detail' item.id %}" class="btn btn-primary">Подробнее</a>
+                            {% else %}
+                                <a href="{% url 'internship_detail' item.id %}" class="btn btn-success">Подробнее</a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
             {% empty %}
-            <p>Пока нет активных стажировок</p>
+            <div class="alert alert-info">
+                <p>Пока нет активных вакансий</p>
+            </div>
             {% endfor %}
-            <a href="{% url 'internship_list' %}" class="btn btn-outline-primary">Все стажировки</a>
+
+            <a href="{% url 'vacancy_list' %}" class="btn btn-outline-primary">Все вакансии и стажировки</a>
         </div>
     </div>
 </div>

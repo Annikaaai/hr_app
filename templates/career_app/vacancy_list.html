@@ -2,51 +2,202 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1>Вакансии</h1>
+    <h1>Вакансии и стажировки</h1>
+    <p class="text-muted">Найдите подходящие возможности для карьерного роста</p>
 
-    <form method="get" class="mb-4">
-        <div class="input-group">
-            <input type="text" name="q" class="form-control" placeholder="Поиск вакансий..." value="{{ query }}">
-            <button class="btn btn-primary" type="submit">Найти</button>
-        </div>
-    </form>
-
-    {% for vacancy in page_obj %}
-    <div class="card mb-3">
+    <!-- Фильтры и поиск -->
+    <div class="card mb-4">
         <div class="card-body">
-            <h5 class="card-title">{{ vacancy.title }}</h5>
-            <h6 class="card-subtitle mb-2 text-muted">{{ vacancy.company.name }}</h6>
-            <p class="card-text">{{ vacancy.description|truncatewords:50 }}</p>
-            {% if vacancy.salary %}
-            <p class="card-text"><strong>Зарплата:</strong> {{ vacancy.salary }}</p>
-            {% endif %}
-            <a href="{% url 'vacancy_detail' vacancy.pk %}" class="btn btn-primary">Подробнее</a>
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="get" class="d-flex">
+                    <input type="text" name="q" class="form-control me-2"
+                           placeholder="Поиск по названию, описанию или компании..."
+                           value="{% if query %}{{ query }}{% endif %}"
+                           style="transition: none !important;">
+                    <button class="btn btn-primary" type="submit" style="transition: none !important;">Найти</button>
+                </form>
+                </div>
+                <div class="col-md-4">
+                    <div class="btn-group w-100" role="group">
+                        <a href="?type=all{% if query %}&q={{ query }}{% endif %}"
+                           class="btn btn-outline-primary {% if filter_type == 'all' %}active{% endif %}">
+                            Все ({{ total_count }})
+                        </a>
+                        <a href="?type=vacancies{% if query %}&q={{ query }}{% endif %}"
+                           class="btn btn-outline-primary {% if filter_type == 'vacancies' %}active{% endif %}">
+                            Вакансии ({{ vacancies_count }})
+                        </a>
+                        <a href="?type=internships{% if query %}&q={{ query }}{% endif %}"
+                           class="btn btn-outline-primary {% if filter_type == 'internships' %}active{% endif %}">
+                            Стажировки ({{ internships_count }})
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<div class="row mt-3">
+    <div class="col-md-12">
+        <label class="form-label"><strong>Фильтр по категории:</strong></label>
+        <div class="btn-group flex-wrap" role="group">
+            <a href="?{% if query %}q={{ query }}&{% endif %}{% if filter_type != 'all' %}type={{ filter_type }}&{% endif %}"
+               class="btn btn-outline-secondary {% if not category_id %}active{% endif %}">
+                Все категории
+            </a>
+            {% for category in categories %}
+            <a href="?{% if query %}q={{ query }}&{% endif %}{% if filter_type != 'all' %}type={{ filter_type }}&{% endif %}category={{ category.id }}"
+               class="btn btn-outline-secondary {% if category_id == category.id|stringformat:'i' %}active{% endif %}">
+                {{ category.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">{{ total_count }}</h5>
+                    <p class="card-text">Всего предложений</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">{{ vacancies_count }}</h5>
+                    <p class="card-text">Вакансий</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">{{ internships_count }}</h5>
+                    <p class="card-text">Стажировок</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список вакансий и стажировок -->
+    {% for item in page_obj %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <!-- Заголовок и тег -->
+                    <div class="d-flex align-items-center mb-2">
+                        <h5 class="card-title mb-0 me-3">
+                            {% if item.type == 'vacancy' %}
+                                <a href="{% url 'vacancy_detail' item.id %}" class="text-decoration-none">
+                                    {{ item.title }}
+                                </a>
+                            {% else %}
+                                <a href="{% url 'internship_detail' item.id %}" class="text-decoration-none">
+                                    {{ item.title }}
+                                </a>
+                            {% endif %}
+                        </h5>
+                        <span class="badge {% if item.type == 'vacancy' %}bg-primary{% else %}bg-success{% endif %}">
+                            {% if item.type == 'vacancy' %}Вакансия{% else %}Стажировка{% endif %}
+                        </span>
+                        {% if item.category %}
+                            <span class="badge bg-info ms-2">{{ item.category.name }}</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Компания/ВУЗ -->
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ item.company }}
+                    </h6>
+
+                    <!-- Описание -->
+                    <p class="card-text">{{ item.description|truncatewords:40 }}</p>
+
+                    <!-- Детали -->
+                    <div class="row text-muted small">
+                        {% if item.type == 'vacancy' %}
+                            {% if item.salary %}
+                            <div class="col-auto">
+                                <strong>Зарплата:</strong> {{ item.salary }}
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="col-auto">
+                                <strong>Специальность:</strong> {{ item.specialty }}
+                            </div>
+                            <div class="col-auto">
+                                <strong>Студентов:</strong> {{ item.student_count }}
+                            </div>
+                            <div class="col-auto">
+                                <strong>Период:</strong> {{ item.period }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="text-end ms-3">
+                    <!-- Кнопка действия -->
+                    {% if item.type == 'vacancy' %}
+                        <a href="{% url 'vacancy_detail' item.id %}" class="btn btn-primary btn-sm">Подробнее</a>
+                    {% else %}
+                        <a href="{% url 'internship_detail' item.id %}" class="btn btn-success btn-sm">Подробнее</a>
+                    {% endif %}
+
+                    <br>
+                    <small class="text-muted">
+                        {{ item.created_at|date:"d.m.Y" }}
+                    </small>
+                </div>
+            </div>
         </div>
     </div>
     {% empty %}
-    <div class="alert alert-info">
-        Вакансии не найдены.
+    <div class="text-center py-5">
+        <h4 class="text-muted">Ничего не найдено</h4>
+        <p class="text-muted">
+            {% if filter_type == 'vacancies' %}
+                Нет вакансий, соответствующих вашему запросу
+            {% elif filter_type == 'internships' %}
+                Нет стажировок, соответствующих вашему запросу
+            {% else %}
+                Нет вакансий или стажировок, соответствующих вашему запросу
+            {% endif %}
+        </p>
+        {% if query or filter_type != 'all' %}
+        <a href="{% url 'vacancy_list' %}" class="btn btn-primary">Показать все предложения</a>
+        {% endif %}
     </div>
     {% endfor %}
 
+    <!-- Пагинация -->
     {% if page_obj.has_other_pages %}
     <nav aria-label="Page navigation">
-        <ul class="pagination">
+        <ul class="pagination justify-content-center">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">Назад</a>
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}">Назад</a>
             </li>
             {% endif %}
 
             {% for num in page_obj.paginator.page_range %}
-            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
-            </li>
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">Вперед</a>
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}">Вперед</a>
             </li>
             {% endif %}
         </ul>

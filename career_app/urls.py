@@ -10,10 +10,8 @@ urlpatterns = [
     # Вакансии
     path('vacancies/', views.vacancy_list, name='vacancy_list'),
     path('vacancies/<int:pk>/', views.vacancy_detail, name='vacancy_detail'),
+    path('internships/<int:pk>/', views.internship_detail, name='internship_detail'),
     path('vacancies/create/', views.create_vacancy, name='create_vacancy'),
-
-    # Стажировки
-    path('internships/', views.internship_list, name='internship_list'),
     path('internships/create/', views.create_internship, name='create_internship'),
 
     # Дашборды

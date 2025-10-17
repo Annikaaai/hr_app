@@ -6,7 +6,8 @@
 
     {% if not applicant %}
     <div class="alert alert-warning">
-        <p>Пожалуйста, заполните информацию о себе для отклика на вакансии.</p>
+        <h5>Профиль соискателя не заполнен</h5>
+        <p>Для отклика на вакансии необходимо заполнить информацию о себе.</p>
         <a href="{% url 'create_applicant_profile' %}" class="btn btn-primary">Заполнить профиль</a>
     </div>
     {% else %}
@@ -18,24 +19,199 @@
     {% endif %}
 
     <div class="row mt-4">
+        <!-- Отклики на вакансии -->
         <div class="col-md-6">
-            <h3>Мои отклики</h3>
+            <h3>Мои отклики на вакансии</h3>
             {% for application in applications %}
             <div class="card mb-3">
                 <div class="card-body">
-                    <h6>{{ application.vacancy.title }}</h6>
-                    <p class="mb-1">{{ application.vacancy.company.name }}</p>
-                    <span class="badge bg-{% if application.status == 'new' %}warning{% elif application.status == 'reviewed' %}info{% elif application.status == 'invited' %}success{% else %}danger{% endif %}">
-                        {{ application.get_status_display }}
-                    </span>
-                    <small class="text-muted">{{ application.applied_at|date:"d.m.Y H:i" }}</small>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-2">
+                                {{ application.vacancy.title }}
+                                {% if application.vacancy.category %}
+                                <span class="badge bg-info ms-2">{{ application.vacancy.category.name }}</span>
+                                {% endif %}
+                            </h6>
+                            <p class="card-text mb-1">
+                                <strong>Компания:</strong> {{ application.vacancy.company.name }}
+                            </p>
+                            {% if application.vacancy.salary %}
+                            <p class="card-text mb-1">
+                                <strong>Зарплата:</strong> {{ application.vacancy.salary }}
+                            </p>
+                            {% endif %}
+                            <p class="card-text mb-1">
+                                <strong>Дата отклика:</strong> {{ application.applied_at|date:"d.m.Y H:i" }}
+                            </p>
+                            {% if application.cover_letter %}
+                            <p class="card-text mt-2">
+                                <strong>Сопроводительное письмо:</strong><br>
+                                {{ application.cover_letter|truncatewords:30 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{% if application.status == 'new' %}warning{% elif application.status == 'reviewed' %}info{% elif application.status == 'invited' %}success{% else %}danger{% endif %} mb-2">
+                                {{ application.get_status_display }}
+                            </span>
+                            <br>
+                            <a href="{% url 'vacancy_detail' application.vacancy.pk %}" class="btn btn-sm btn-outline-primary mt-1">Посмотреть вакансию</a>
+                        </div>
+                    </div>
                 </div>
             </div>
             {% empty %}
-            <p class="text-muted">Вы еще не отправляли отклики</p>
-            <a href="{% url 'vacancy_list' %}" class="btn btn-primary">Найти вакансии</a>
+            <div class="text-center py-4">
+                <h5 class="text-muted">У вас пока нет откликов на вакансии</h5>
+                <p class="text-muted">Найдите подходящие вакансии и отправьте свой первый отклик!</p>
+                <a href="{% url 'vacancy_list' %}" class="btn btn-primary">Найти вакансии</a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Отклики на стажировки -->
+        <div class="col-md-6">
+            <h3>Мои отклики на стажировки</h3>
+            {% for response in internship_responses %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-2">
+                                {{ response.internship.title }}
+                                {% if response.internship.category %}
+                                <span class="badge bg-success ms-2">{{ response.internship.category.name }}</span>
+                                {% endif %}
+                            </h6>
+                            <p class="card-text mb-1">
+                                <strong>Учебное заведение:</strong> {{ response.internship.institution.name }}
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Специальность:</strong> {{ response.internship.specialty }}
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Период:</strong> {{ response.internship.period }}
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Дата отклика:</strong> {{ response.applied_at|date:"d.m.Y H:i" }}
+                            </p>
+                            {% if response.cover_letter %}
+                            <p class="card-text mt-2">
+                                <strong>Сопроводительное письмо:</strong><br>
+                                {{ response.cover_letter|truncatewords:30 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{% if response.status == 'new' %}warning{% elif response.status == 'reviewed' %}info{% elif response.status == 'invited' %}success{% else %}danger{% endif %} mb-2">
+                                {{ response.get_status_display }}
+                            </span>
+                            <br>
+                            <a href="{% url 'internship_detail' response.internship.pk %}" class="btn btn-sm btn-outline-success mt-1">Посмотреть стажировку</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-4">
+                <h5 class="text-muted">У вас пока нет откликов на стажировки</h5>
+                <p class="text-muted">Найдите интересные стажировки и отправьте свой первый отклик!</p>
+                <a href="{% url 'vacancy_list' %}?type=internships" class="btn btn-success">Найти стажировки</a>
+            </div>
             {% endfor %}
         </div>
     </div>
+
+    <!-- Быстрые действия -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Быстрые действия</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'vacancy_list' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> Поиск вакансий
+                                </a>
+                                <small class="text-muted text-center">Найдите работу по вашей специальности</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'vacancy_list' %}?type=internships" class="btn btn-outline-success">
+                                    <i class="fas fa-graduation-cap"></i> Поиск стажировок
+                                </a>
+                                <small class="text-muted text-center">Найдите стажировку для получения опыта</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                {% if applicant %}
+                                <a href="{% url 'update_applicant_profile' %}" class="btn btn-outline-info">
+                                    <i class="fas fa-user-edit"></i> Редактировать профиль
+                                </a>
+                                {% else %}
+                                <a href="{% url 'create_applicant_profile' %}" class="btn btn-outline-info">
+                                    <i class="fas fa-user-plus"></i> Заполнить профиль
+                                </a>
+                                {% endif %}
+                                <small class="text-muted text-center">Обновите ваше резюме и контакты</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    {% if applicant %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Моя статистика</h5>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ applications.count }}</h3>
+                                <p class="mb-0">Откликов на вакансии</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ internship_responses.count }}</h3>
+                                <p class="mb-0">Откликов на стажировки</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ applications|length|add:internship_responses|length }}</h3>
+                                <p class="mb-0">Всего откликов</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>
+                                    {{ applications|selectattr:"status"|selectattr:"equalto"|length }}
+                                </h3>
+                                <p class="mb-0">Активных откликов</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<style>
+.card-title .badge {
+    font-size: 0.7em;
+    vertical-align: middle;
+}
+</style>
 {% endblock %}

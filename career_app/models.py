@@ -36,7 +36,18 @@ class EducationalInstitution(models.Model):
     def __str__(self):
         return self.name
 
+class Category(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Название категории")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 class Vacancy(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Черновик'),
@@ -48,6 +59,7 @@ class Vacancy(models.Model):
 
     title = models.CharField(max_length=200, verbose_name="Должность")
     company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name="Компания")
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Категория")
     description = models.TextField(verbose_name="Описание вакансии")
     requirements = models.TextField(verbose_name="Требования")
     salary = models.CharField(max_length=100, blank=True, verbose_name="Зарплата")
@@ -88,6 +100,7 @@ class Internship(models.Model):
 
     title = models.CharField(max_length=200, verbose_name="Название стажировки")
     institution = models.ForeignKey(EducationalInstitution, on_delete=models.CASCADE, verbose_name="Учебное заведение")
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Категория")
     specialty = models.CharField(max_length=200, verbose_name="Специальность")
     student_count = models.IntegerField(verbose_name="Количество студентов")
     period = models.CharField(max_length=100, verbose_name="Период стажировки")
@@ -176,4 +189,54 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+
+class InternshipApplication(models.Model):
+    STATUS_CHOICES = [
+        ('new', 'Новая'),
+        ('reviewed', 'Рассмотрена'),
+        ('invited', 'Приглашены'),
+        ('rejected', 'Отклонена'),
+    ]
+
+    internship = models.ForeignKey(Internship, on_delete=models.CASCADE, verbose_name="Стажировка")
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name="Компания")
+    contact_person = models.CharField(max_length=200, verbose_name="Контактное лицо")
+    contact_email = models.EmailField(verbose_name="Контактный email")
+    contact_phone = models.CharField(max_length=20, verbose_name="Контактный телефон")
+    proposal = models.TextField(verbose_name="Предложение по стажировке")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
+    applied_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Отклик на стажировку"
+        verbose_name_plural = "Отклики на стажировки"
+        ordering = ['-applied_at']
+
+    def __str__(self):
+        return f"{self.company.name} - {self.internship.title}"
+
+
+class InternshipResponse(models.Model):
+    STATUS_CHOICES = [
+        ('new', 'Новая'),
+        ('reviewed', 'Рассмотрена'),
+        ('invited', 'Приглашен'),
+        ('rejected', 'Отклонена'),
+    ]
+
+    internship = models.ForeignKey(Internship, on_delete=models.CASCADE, verbose_name="Стажировка")
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, verbose_name="Соискатель")
+    cover_letter = models.TextField(verbose_name="Сопроводительное письмо")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
+    applied_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Отклик на стажировку"
+        verbose_name_plural = "Отклики на стажировки"
+        ordering = ['-applied_at']
+
+    def __str__(self):
+        return f"{self.applicant} - {self.internship.title}"
+
 

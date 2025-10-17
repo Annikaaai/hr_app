@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'vacancy_list' %}">Вакансии и стажировки</a></li>
+            <li class="breadcrumb-item active">{{ internship.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <span class="badge bg-success mb-3">Стажировка</span>
+                    <h1 class="card-title">{{ internship.title }}</h1>
+                    <h4 class="card-subtitle mb-3 text-muted">{{ internship.institution.name }}</h4>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Специальность:</strong> {{ internship.specialty }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Количество студентов:</strong> {{ internship.student_count }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Период стажировки:</strong> {{ internship.period }}
+                        </div>
+                    </div>
+
+                    <h5>Описание стажировки:</h5>
+                    <p>{{ internship.description|linebreaks }}</p>
+
+                    <h5>Требования к студентам:</h5>
+                    <p>{{ internship.requirements|linebreaks }}</p>
+
+                    <p class="text-muted">
+                        <small>Опубликована: {{ internship.created_at|date:"d.m.Y" }}</small>
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a href="{% url 'vacancy_list' %}?type=internships" class="btn btn-outline-primary">← Все стажировки</a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Откликнуться на стажировку</h5>
+
+                    {% if not can_apply %}
+                        {% if not user.is_authenticated %}
+                        <div class="alert alert-warning">
+                            <p>Для отклика на стажировку необходимо войти в систему как соискатель.</p>
+                            <a href="{% url 'login' %}" class="btn btn-primary btn-sm">Войти</a>
+                            <a href="{% url 'register' %}" class="btn btn-outline-primary btn-sm">Зарегистрироваться</a>
+                        </div>
+                        {% elif user.userprofile.role != 'applicant' %}
+                        <div class="alert alert-info">
+                            Откликаться на стажировки могут только соискатели.
+                            <br><small>Ваша текущая роль: {{ user.userprofile.get_role_display }}</small>
+                            <br><small>Если вы студент, измените роль в <a href="{% url 'profile_setup' %}">настройках профиля</a></small>
+                        </div>
+                        {% elif not applicant %}
+                        <div class="alert alert-warning">
+                            <p>Для отклика на стажировку необходимо заполнить профиль соискателя.</p>
+                            <a href="{% url 'create_applicant_profile' %}" class="btn btn-primary btn-sm">Заполнить профиль</a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="cover_letter" class="form-label">Сопроводительное письмо</label>
+                                <textarea name="cover_letter" id="cover_letter" rows="4" class="form-control"
+                                          placeholder="Расскажите почему вы хотите пройти эту стажировку и чем вы полезны..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Отправить отклик</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Информация для представителей вуза -->
+            {% if user.is_authenticated and user.userprofile.role == 'university' and internship.institution == user.userprofile.institution %}
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6>Управление стажировкой</h6>
+                    <p class="small text-muted">Статус: <strong>{{ internship.get_status_display }}</strong></p>
+                    <p class="small text-muted">Откликов соискателей: <strong>{{ internship.internshipresponse_set.count }}</strong></p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

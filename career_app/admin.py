@@ -39,3 +39,15 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ['user', 'role', 'company', 'institution']
     list_filter = ['role']
     search_fields = ['user__username']
+
+@admin.register(InternshipResponse)
+class InternshipResponseAdmin(admin.ModelAdmin):
+    list_display = ['applicant', 'internship', 'status', 'applied_at']
+    list_filter = ['status', 'applied_at']
+    search_fields = ['applicant__first_name', 'applicant__last_name', 'internship__title']
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'description', 'created_at']
+    search_fields = ['name']
+    list_filter = ['created_at']
