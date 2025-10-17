@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Панель соискателя</h1>
+
+    {% if not applicant %}
+    <div class="alert alert-warning">
+        <p>Пожалуйста, заполните информацию о себе для отклика на вакансии.</p>
+        <a href="{% url 'create_applicant_profile' %}" class="btn btn-primary">Заполнить профиль</a>
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+        <h5>Профиль заполнен</h5>
+        <p>Вы можете откликаться на вакансии и управлять своими откликами.</p>
+        <a href="{% url 'update_applicant_profile' %}" class="btn btn-outline-primary">Редактировать профиль</a>
+    </div>
+    {% endif %}
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <h3>Мои отклики</h3>
+            {% for application in applications %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>{{ application.vacancy.title }}</h6>
+                    <p class="mb-1">{{ application.vacancy.company.name }}</p>
+                    <span class="badge bg-{% if application.status == 'new' %}warning{% elif application.status == 'reviewed' %}info{% elif application.status == 'invited' %}success{% else %}danger{% endif %}">
+                        {{ application.get_status_display }}
+                    </span>
+                    <small class="text-muted">{{ application.applied_at|date:"d.m.Y H:i" }}</small>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted">Вы еще не отправляли отклики</p>
+            <a href="{% url 'vacancy_list' %}" class="btn btn-primary">Найти вакансии</a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

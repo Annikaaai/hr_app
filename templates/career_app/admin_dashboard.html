@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Панель администратора ОЭЗ</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ vacancies_count }}</h5>
+                    <p class="card-text">Всего вакансий</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ moderation_vacancies }}</h5>
+                    <p class="card-text">На модерации</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ published_vacancies }}</h5>
+                    <p class="card-text">Опубликовано</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ applications_count }}</h5>
+                    <p class="card-text">Откликов</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ internships_count }}</h5>
+                    <p class="card-text">Стажировок</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ moderation_internships }}</h5>
+                    <p class="card-text">Стажировок на модерации</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ published_internships }}</h5>
+                    <p class="card-text">Стажировок опубликовано</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-dark">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ total_companies }}</h5>
+                    <p class="card-text">Компаний</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'moderation_list' %}" class="btn btn-warning">
+                            Модерация контента
+                            {% if moderation_vacancies or moderation_internships %}
+                            <span class="badge bg-danger">{{ moderation_vacancies|add:moderation_internships }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'analytics' %}" class="btn btn-info">
+                            Аналитика
+                        </a>
+                        <a href="/admin/" class="btn btn-secondary">
+                            Админ-панель Django
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Последние действия</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Здесь будет отображаться последняя активность в системе...</p>
+                    <ul class="list-group">
+                        <li class="list-group-item">Новых вакансий за сегодня: 0</li>
+                        <li class="list-group-item">Новых откликов за сегодня: 0</li>
+                        <li class="list-group-item">Новых стажировок за сегодня: 0</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

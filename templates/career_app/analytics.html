@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Аналитика системы</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Вакансии по компаниям</h5>
+                </div>
+                <div class="card-body">
+                    {% if vacancies_by_company %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Компания</th>
+                                <th>Количество вакансий</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in vacancies_by_company %}
+                            <tr>
+                                <td>{{ item.company__name }}</td>
+                                <td><span class="badge bg-primary">{{ item.count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">Нет данных о вакансиях</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Отклики по вакансиям</h5>
+                </div>
+                <div class="card-body">
+                    {% if applications_by_vacancy %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Вакансия</th>
+                                <th>Откликов</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in applications_by_vacancy %}
+                            <tr>
+                                <td>{{ item.vacancy__title|truncatewords:3 }}</td>
+                                <td><span class="badge bg-info">{{ item.count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">Нет данных об откликах</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Общая статистика</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ total_vacancies }}</h3>
+                                <p class="mb-0">Всего вакансий</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ total_internships }}</h3>
+                                <p class="mb-0">Всего стажировок</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ total_applications }}</h3>
+                                <p class="mb-0">Всего откликов</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h3>{{ total_companies }}</h3>
+                                <p class="mb-0">Компаний</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

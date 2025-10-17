@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Модерация контента</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <h3>Вакансии на модерации</h3>
+            {% for vacancy in vacancies %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>{{ vacancy.title }}</h5>
+                    <p class="mb-1"><strong>Компания:</strong> {{ vacancy.company.name }}</p>
+                    <p class="mb-1"><strong>Создана:</strong> {{ vacancy.created_at|date:"d.m.Y H:i" }}</p>
+                    <p class="mb-2">{{ vacancy.description|truncatewords:20 }}</p>
+                    <div class="btn-group">
+                        <a href="{% url 'moderate_vacancy' vacancy.pk 'approve' %}" class="btn btn-success btn-sm">Одобрить</a>
+                        <a href="{% url 'moderate_vacancy' vacancy.pk 'reject' %}" class="btn btn-danger btn-sm">Отклонить</a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-info">
+                Нет вакансий на модерации
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="col-md-6">
+            <h3>Стажировки на модерации</h3>
+            {% for internship in internships %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>{{ internship.title }}</h5>
+                    <p class="mb-1"><strong>Учебное заведение:</strong> {{ internship.institution.name }}</p>
+                    <p class="mb-1"><strong>Специальность:</strong> {{ internship.specialty }}</p>
+                    <p class="mb-1"><strong>Количество студентов:</strong> {{ internship.student_count }}</p>
+                    <p class="mb-2">{{ internship.description|truncatewords:20 }}</p>
+                    <div class="btn-group">
+                        <a href="{% url 'moderate_internship' internship.pk 'approve' %}" class="btn btn-success btn-sm">Одобрить</a>
+                        <a href="{% url 'moderate_internship' internship.pk 'reject' %}" class="btn btn-danger btn-sm">Отклонить</a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-info">
+                Нет стажировок на модерации
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

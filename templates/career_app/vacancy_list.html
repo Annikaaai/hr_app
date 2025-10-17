@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Вакансии</h1>
+
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Поиск вакансий..." value="{{ query }}">
+            <button class="btn btn-primary" type="submit">Найти</button>
+        </div>
+    </form>
+
+    {% for vacancy in page_obj %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">{{ vacancy.title }}</h5>
+            <h6 class="card-subtitle mb-2 text-muted">{{ vacancy.company.name }}</h6>
+            <p class="card-text">{{ vacancy.description|truncatewords:50 }}</p>
+            {% if vacancy.salary %}
+            <p class="card-text"><strong>Зарплата:</strong> {{ vacancy.salary }}</p>
+            {% endif %}
+            <a href="{% url 'vacancy_detail' vacancy.pk %}" class="btn btn-primary">Подробнее</a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">
+        Вакансии не найдены.
+    </div>
+    {% endfor %}
+
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">Назад</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">Вперед</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

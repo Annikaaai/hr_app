@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'vacancy_list' %}">Вакансии</a></li>
+            <li class="breadcrumb-item active">{{ vacancy.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Статус вакансии -->
+                    {% if vacancy.status != 'published' %}
+                    <div class="alert alert-warning">
+                        <strong>Статус:</strong> {{ vacancy.get_status_display }}
+                        {% if user.userprofile.role == 'hr' and vacancy.company == user.userprofile.company %}
+                        <br><small>Эта вакансия видна только вам и администраторам</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <h1 class="card-title">{{ vacancy.title }}</h1>
+                    <h4 class="card-subtitle mb-3 text-muted">{{ vacancy.company.name }}</h4>
+
+                    {% if vacancy.salary %}
+                    <div class="alert alert-success">
+                        <strong>Зарплата:</strong> {{ vacancy.salary }}
+                    </div>
+                    {% endif %}
+
+                    <h5>Описание вакансии:</h5>
+                    <p>{{ vacancy.description|linebreaks }}</p>
+
+                    <h5>Требования:</h5>
+                    <p>{{ vacancy.requirements|linebreaks }}</p>
+
+                    <h5>Контактная информация:</h5>
+                    <div class="alert alert-info">
+                        {{ vacancy.contact_info|linebreaks }}
+                    </div>
+
+                    <p class="text-muted">
+                        <small>Создана: {{ vacancy.created_at|date:"d.m.Y" }}</small>
+                        {% if vacancy.published_at %}
+                        <br><small>Опубликована: {{ vacancy.published_at|date:"d.m.Y" }}</small>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Навигация -->
+            <div class="mt-4">
+                {% if user.is_authenticated and user.userprofile.role == 'hr' and vacancy.company == user.userprofile.company %}
+                <a href="{% url 'hr_dashboard' %}" class="btn btn-outline-primary">← Назад к моим вакансиям</a>
+                {% else %}
+                <a href="{% url 'vacancy_list' %}" class="btn btn-outline-primary">← Все вакансии</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Откликнуться на вакансию</h5>
+
+                    {% if not can_apply %}
+                    <div class="alert alert-warning">
+                        <p>На эту вакансию пока нельзя откликнуться.</p>
+                        <p><strong>Статус:</strong> {{ vacancy.get_status_display }}</p>
+                    </div>
+                    {% else %}
+                        {% if user.is_authenticated %}
+                            {% if user.userprofile.role == 'applicant' %}
+                                {% if not user.applicant %}
+                                <div class="alert alert-warning">
+                                    <p>Для отклика на вакансию необходимо заполнить профиль соискателя.</p>
+                                    <a href="{% url 'create_applicant_profile' %}" class="btn btn-primary btn-sm">Заполнить профиль</a>
+                                </div>
+                                {% else %}
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label for="cover_letter" class="form-label">Сопроводительное письмо</label>
+                                        <textarea name="cover_letter" id="cover_letter" rows="4" class="form-control"
+                                                  placeholder="Расскажите почему вы подходите для этой вакансии..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Отправить отклик</button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                            <div class="alert alert-info">
+                                Откликаться на вакансии могут только соискатели.
+                                {% if user.userprofile.role != 'applicant' %}
+                                <br><small>Ваша текущая роль: {{ user.userprofile.get_role_display }}</small>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                {{ applicant_form|crispy }}
+                                <div class="mb-3">
+                                    <label for="cover_letter" class="form-label">Сопроводительное письмо</label>
+                                    <textarea name="cover_letter" id="cover_letter" rows="4" class="form-control"
+                                              placeholder="Расскажите о себе и почему вы заинтересованы в этой вакансии..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Отправить отклик</button>
+                            </form>
+                            <div class="mt-3 text-center">
+                                <small>Уже есть аккаунт? <a href="{% url 'login' %}">Войдите</a></small>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Информация для HR -->
+            {% if user.is_authenticated and user.userprofile.role == 'hr' and vacancy.company == user.userprofile.company %}
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6>Управление вакансией</h6>
+                    <p class="small text-muted">Статус: <strong>{{ vacancy.get_status_display }}</strong></p>
+                    <p class="small text-muted">Откликов: <strong>{{ vacancy.application_set.count }}</strong></p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

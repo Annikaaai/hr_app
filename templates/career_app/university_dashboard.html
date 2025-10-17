@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Панель представителя учебного заведения</h1>
+    <h4 class="text-muted">{{ institution.name }}</h4>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Мои стажировки</h5>
+                    <p class="display-4">{{ internships.count }}</p>
+                    <a href="{% url 'create_internship' %}" class="btn btn-primary">Создать заявку</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Опубликовано</h5>
+                    <p class="display-4">{{ internships_published }}</p>
+                    <small class="text-muted">активных стажировок</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">На модерации</h5>
+                    <p class="display-4">{{ internships_moderation }}</p>
+                    <small class="text-muted">ожидают проверки</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>Мои заявки на стажировки</h3>
+                <a href="{% url 'create_internship' %}" class="btn btn-primary">+ Новая заявка</a>
+            </div>
+
+            {% for internship in internships %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="card-title">{{ internship.title }}</h5>
+                            <p class="card-text mb-1">
+                                <strong>Специальность:</strong> {{ internship.specialty }}
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Студентов:</strong> {{ internship.student_count }}
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Период:</strong> {{ internship.period }}
+                            </p>
+                            <p class="card-text">
+                                {{ internship.description|truncatewords:30 }}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{% if internship.status == 'published' %}success{% elif internship.status == 'moderation' %}warning{% elif internship.status == 'rejected' %}danger{% else %}secondary{% endif %} mb-2">
+                                {{ internship.get_status_display }}
+                            </span>
+                            <br>
+                            <small class="text-muted">
+                                Создана: {{ internship.created_at|date:"d.m.Y" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-4">
+                <h5 class="text-muted">У вас пока нет заявок на стажировки</h5>
+                <p class="text-muted">Создайте первую заявку для размещения в системе</p>
+                <a href="{% url 'create_internship' %}" class="btn btn-primary">Создать заявку</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
