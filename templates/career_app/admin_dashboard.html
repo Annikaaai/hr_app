@@ -75,6 +75,42 @@
     </div>
 
     <div class="row mt-4">
+    <div class="col-12">
+        <h3>Модерация системы</h3>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h5 class="card-title">Запросы ролей</h5>
+                <p class="card-text">Подтверждение HR и университетов</p>
+                <a href="{% url 'role_approval_list' %}" class="btn btn-warning">Модерировать</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h5 class="card-title">Назначение админов</h5>
+                <p class="card-text">Управление администраторами системы</p>
+                <a href="{% url 'admin_promotion' %}" class="btn btn-danger">Управление</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h5 class="card-title">Модерация контента</h5>
+                <p class="card-text">Вакансии и стажировки на проверке</p>
+                <a href="{% url 'moderation_list' %}" class="btn btn-info">Проверить</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <div class="row mt-4">
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
@@ -94,6 +130,7 @@
                         <a href="/admin/" class="btn btn-secondary">
                             Админ-панель Django
                         </a>
+
                     </div>
                 </div>
             </div>

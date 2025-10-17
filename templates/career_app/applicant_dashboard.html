@@ -133,7 +133,7 @@
                         <div class="col-md-4">
                             <div class="d-grid gap-2">
                                 <a href="{% url 'vacancy_list' %}" class="btn btn-outline-primary">
-                                    <i class="fas fa-search"></i> Поиск вакансий
+                                    Поиск вакансий
                                 </a>
                                 <small class="text-muted text-center">Найдите работу по вашей специальности</small>
                             </div>
@@ -141,7 +141,7 @@
                         <div class="col-md-4">
                             <div class="d-grid gap-2">
                                 <a href="{% url 'vacancy_list' %}?type=internships" class="btn btn-outline-success">
-                                    <i class="fas fa-graduation-cap"></i> Поиск стажировок
+                                    Поиск стажировок
                                 </a>
                                 <small class="text-muted text-center">Найдите стажировку для получения опыта</small>
                             </div>
@@ -150,11 +150,11 @@
                             <div class="d-grid gap-2">
                                 {% if applicant %}
                                 <a href="{% url 'update_applicant_profile' %}" class="btn btn-outline-info">
-                                    <i class="fas fa-user-edit"></i> Редактировать профиль
+                                    Редактировать профиль
                                 </a>
                                 {% else %}
                                 <a href="{% url 'create_applicant_profile' %}" class="btn btn-outline-info">
-                                    <i class="fas fa-user-plus"></i> Заполнить профиль
+                                    Заполнить профиль
                                 </a>
                                 {% endif %}
                                 <small class="text-muted text-center">Обновите ваше резюме и контакты</small>
@@ -188,16 +188,20 @@
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded p-3">
-                                <h3>{{ applications|length|add:internship_responses|length }}</h3>
+                                <h3>{{ applications.count|add:internship_responses.count }}</h3>
                                 <p class="mb-0">Всего откликов</p>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border rounded p-3">
                                 <h3>
-                                    {{ applications|selectattr:"status"|selectattr:"equalto"|length }}
+                                    {% with new_applications=applications|length %}
+                                    {% with new_responses=internship_responses|length %}
+                                    {{ new_applications|add:new_responses }}
+                                    {% endwith %}
+                                    {% endwith %}
                                 </h3>
-                                <p class="mb-0">Активных откликов</p>
+                                <p class="mb-0">Новых откликов</p>
                             </div>
                         </div>
                     </div>

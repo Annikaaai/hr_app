@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0 text-center">Выберите роль для входа в систему</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            {% for value, label in role_choices %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card role-card">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">{{ label }}</h5>
+                                        <p class="card-text text-muted small">
+                                            {% if value == 'applicant' %}
+                                                Поиск вакансий и стажировок
+                                            {% elif value == 'hr' %}
+                                                Размещение вакансий компании
+                                            {% elif value == 'university' %}
+                                                Размещение стажировок для студентов
+                                            {% elif value == 'admin' %}
+                                                Управление системой и модерация
+                                            {% endif %}
+                                        </p>
+                                        <button type="submit" name="role" value="{{ value }}"
+                                                class="btn btn-outline-primary w-100">
+                                            Выбрать
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <input type="hidden" name="role" id="selected_role">
+                    </form>
+
+                    <div class="mt-4 text-center">
+                        <p class="text-muted">Нет аккаунта? <a href="{% url 'register' %}" class="btn btn-success btn-sm">Зарегистрироваться</a></p>
+                        <small class="text-muted">Роль администратора можно получить только по назначению</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.role-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    height: 100%;
+}
+
+.role-card:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.role-card .btn {
+    transition: all 0.3s ease;
+}
+
+.role-card .btn:hover {
+    background-color: #007bff;
+    color: white;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleButtons = document.querySelectorAll('button[name="role"]');
+    const hiddenInput = document.getElementById('selected_role');
+
+    roleButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            hiddenInput.value = this.value;
+            this.form.submit();
+        });
+    });
+});
+</script>
+{% endblock %}

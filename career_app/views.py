@@ -1,60 +1,112 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import login, authenticate
 from django.contrib import messages
 from django.db import models
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from .models import *
 from .forms import *
-from django.contrib.auth import login
-from django.shortcuts import render, redirect
 from django.conf import settings
 
 
 def register(request):
     """Регистрация нового пользователя"""
     if request.method == 'POST':
-        user_form = CustomUserCreationForm(request.POST)
-        if user_form.is_valid():
-            user = user_form.save()
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
 
-            # Автоматически входим после регистрации
-            login(request, user)
+            # Получаем или создаем профиль пользователя
+            role = form.cleaned_data['role']
 
-            # Профиль уже создан сигналом, просто обновляем роль если нужно
             try:
+                # Пытаемся получить существующий профиль
                 user_profile = user.userprofile
-                # Убедимся, что роль установлена как 'applicant'
-                if user_profile.role != 'applicant':
-                    user_profile.role = 'applicant'
-                    user_profile.save()
+                # Обновляем роль
+                user_profile.role = role
+                user_profile.save()
             except UserProfile.DoesNotExist:
-                # На всякий случай, если сигнал не сработал
-                UserProfile.objects.create(user=user, role='applicant')
+                # Создаем новый профиль если не существует
+                user_profile = UserProfile.objects.create(user=user, role=role)
 
-            messages.success(request, 'Регистрация прошла успешно! Заполните ваш профиль.')
-            return redirect('profile_setup')
+            # Для HR и университетов создаем запрос на подтверждение
+            if role in ['hr', 'university']:
+                company_name = form.cleaned_data.get('company_name', '')
+                institution_name = form.cleaned_data.get('institution_name', '')
+
+                RoleApprovalRequest.objects.create(
+                    user=user,
+                    requested_role=role,
+                    company_name=company_name,
+                    institution_name=institution_name
+                )
+
+                # Создаем компанию или учебное заведение
+                if role == 'hr' and company_name:
+                    company = Company.objects.create(
+                        name=company_name,
+                        contact_email=user.email,
+                        contact_phone='',
+                        is_approved=False
+                    )
+                    user_profile.company = company
+                    user_profile.save()
+
+                elif role == 'university' and institution_name:
+                    institution = EducationalInstitution.objects.create(
+                        name=institution_name,
+                        contact_email=user.email,
+                        contact_phone='',
+                        is_approved=False
+                    )
+                    user_profile.institution = institution
+                    user_profile.save()
+
+                messages.success(request,
+                                 'Регистрация прошла успешно! Ваш аккаунт ожидает подтверждения администратором.')
+                return redirect('pending_approval')
+
+            else:  # Для соискателей
+                # Создаем или обновляем профиль соискателя
+                applicant, created = Applicant.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'first_name': user.first_name or '',
+                        'last_name': user.last_name or '',
+                        'email': user.email or ''
+                    }
+                )
+
+                # Соискатели автоматически подтверждаются
+                user_profile.is_approved = True
+                user_profile.save()
+
+                login(request, user)
+                messages.success(request, 'Регистрация прошла успешно! Заполните ваш профиль.')
+                return redirect('profile_setup')
+
     else:
-        user_form = CustomUserCreationForm()
+        form = CustomUserCreationForm()
 
-    context = {'form': user_form}
+    context = {'form': form}
     return render(request, 'registration/register.html', context)
 
 def is_admin(user):
     try:
-        return user.userprofile.role == 'admin'
+        return user.userprofile.role == 'admin'  # Админы не требуют is_approved
     except UserProfile.DoesNotExist:
         return False
 
 def is_hr(user):
     try:
-        return user.userprofile.role == 'hr'
+        return user.userprofile.role == 'hr' and user.userprofile.is_approved
     except UserProfile.DoesNotExist:
         return False
 
 def is_university(user):
     try:
-        return user.userprofile.role == 'university'
+        return user.userprofile.role == 'university' and user.userprofile.is_approved
     except UserProfile.DoesNotExist:
         return False
 
@@ -107,8 +159,9 @@ def vacancy_list(request):
     internships = Internship.objects.filter(status='published')
 
     # Параметры фильтрации из GET-запроса
-    filter_type = request.GET.get('type', 'all')  # all, vacancies, internships
-    category_id = request.GET.get('category', '')
+    filter_type = request.GET.get('type', 'all')
+    selected_categories = request.GET.getlist('category')  # Множественный выбор
+    selected_main_categories = request.GET.getlist('main_category')  # Множественный выбор
 
     # Объединяем данные в один список с пометкой типа
     items = []
@@ -149,9 +202,19 @@ def vacancy_list(request):
     elif filter_type == 'internships':
         items = [item for item in items if item['type'] == 'internship']
 
-    # Фильтр по категории
-    if category_id:
-        items = [item for item in items if item['category'] and item['category'].id == int(category_id)]
+    # Фильтр по основным категориям
+    if selected_main_categories:
+        main_category_ids = [int(cat_id) for cat_id in selected_main_categories]
+        main_categories = Category.objects.filter(id__in=main_category_ids)
+        subcategory_ids = []
+        for main_cat in main_categories:
+            subcategory_ids.extend([subcat.id for subcat in main_cat.get_subcategories()])
+        items = [item for item in items if item['category'] and item['category'].id in subcategory_ids]
+
+    # Фильтр по конкретным категориям
+    if selected_categories and not selected_main_categories:
+        category_ids = [int(cat_id) for cat_id in selected_categories]
+        items = [item for item in items if item['category'] and item['category'].id in category_ids]
 
     # Поиск
     query = request.GET.get('q')
@@ -169,20 +232,24 @@ def vacancy_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Получаем все категории для фильтра
-    categories = Category.objects.all()
+    # Получаем категории для фильтра
+    main_categories = Category.objects.filter(is_main=True)
+    all_categories = Category.objects.all()
 
     context = {
         'page_obj': page_obj,
         'query': query,
         'filter_type': filter_type,
-        'category_id': category_id,
-        'categories': categories,
+        'selected_categories': [int(cat_id) for cat_id in selected_categories],
+        'selected_main_categories': [int(cat_id) for cat_id in selected_main_categories],
+        'main_categories': main_categories,
+        'all_categories': all_categories,
         'total_count': len(items),
         'vacancies_count': len([item for item in items if item['type'] == 'vacancy']),
         'internships_count': len([item for item in items if item['type'] == 'internship']),
     }
     return render(request, 'career_app/vacancy_list.html', context)
+
 
 def vacancy_detail(request, pk):
     try:
@@ -315,9 +382,13 @@ def dashboard(request):
     try:
         user_profile = request.user.userprofile
     except UserProfile.DoesNotExist:
-        # Перенаправляем на страницу настройки профиля
         messages.info(request, "Пожалуйста, завершите настройку вашего профиля.")
         return redirect('profile_setup')
+
+    # Проверяем доступ к дашборду
+    if not user_profile.can_access_dashboard():
+        messages.warning(request, "Ваш аккаунт ожидает подтверждения администратором.")
+        return redirect('pending_approval')
 
     if user_profile.role == 'admin':
         return admin_dashboard(request)
@@ -596,3 +667,198 @@ def profile_setup(request):
         'applicant_form': applicant_form,
     }
     return render(request, 'career_app/profile_setup.html', context)
+
+
+def role_selection(request):
+    """Первая страница - выбор роли для входа"""
+    if request.method == 'POST':
+        form = RoleSelectionForm(request.POST)
+        if form.is_valid():
+            request.session['selected_role'] = form.cleaned_data['role']
+            return redirect('custom_login')
+    else:
+        form = RoleSelectionForm()
+
+    context = {
+        'form': form,
+        'role_choices': [
+            ('applicant', 'Соискатель'),
+            ('hr', 'HR компании'),
+            ('university', 'Представитель вуза'),
+            ('admin', 'Администратор ОЭЗ'),
+        ]
+    }
+    return render(request, 'career_app/role_selection.html', context)
+
+
+def custom_login(request):
+    """Вторая страница - ввод логина и пароля"""
+    selected_role = request.session.get('selected_role')
+
+    if not selected_role:
+        return redirect('role_selection')
+
+    if request.method == 'POST':
+        form = CustomLoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                try:
+                    user_profile = user.userprofile
+                    if user_profile.role != selected_role:
+                        messages.error(request,
+                                       f'Выбранная роль не соответствует вашему профилю. Ваша роль: {user_profile.get_role_display()}')
+                        return redirect('role_selection')
+
+                    # Для HR и университетов проверяем подтверждение
+                    if user_profile.role in ['hr', 'university'] and not user_profile.is_approved:
+                        messages.warning(request, 'Ваш аккаунт ожидает подтверждения администратором.')
+                        return redirect('pending_approval')
+
+                    login(request, user)
+                    return redirect('dashboard')
+
+                except UserProfile.DoesNotExist:
+                    messages.error(request, 'Профиль пользователя не найден.')
+                    return redirect('role_selection')
+            else:
+                messages.error(request, 'Неверный логин или пароль.')
+    else:
+        form = CustomLoginForm()
+
+    role_display = dict(RoleSelectionForm.ROLE_CHOICES).get(selected_role, selected_role)
+
+    context = {
+        'form': form,
+        'selected_role': selected_role,
+        'role_display': role_display,
+    }
+    return render(request, 'career_app/custom_login.html', context)
+
+def pending_approval(request):
+    """Страница ожидания подтверждения"""
+    return render(request, 'career_app/pending_approval.html')
+
+@login_required
+@user_passes_test(is_admin)
+def admin_promotion(request):
+    """Назначение новых администраторов"""
+    if request.method == 'POST':
+        form = AdminPromotionForm(request.POST)
+        if form.is_valid():
+            user = form.cleaned_data['user']
+
+            try:
+                user_profile = user.userprofile
+                # Меняем роль на админа
+                user_profile.role = 'admin'
+                user_profile.is_approved = True  # Админы автоматически подтверждаются
+                user_profile.save()
+
+                messages.success(request, f'Пользователь {user.username} теперь администратор!')
+                return redirect('admin_promotion')
+
+            except UserProfile.DoesNotExist:
+                # Создаем новый профиль с ролью админа
+                UserProfile.objects.create(
+                    user=user,
+                    role='admin',
+                    is_approved=True
+                )
+                messages.success(request, f'Пользователь {user.username} теперь администратор!')
+                return redirect('admin_promotion')
+    else:
+        form = AdminPromotionForm()
+
+    # Список текущих администраторов
+    current_admins = UserProfile.objects.filter(role='admin').select_related('user')
+
+    context = {
+        'form': form,
+        'current_admins': current_admins,
+    }
+    return render(request, 'career_app/admin_promotion.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def revoke_admin(request, user_id):
+    """Отзыв прав администратора"""
+    if request.method == 'POST':
+        user = get_object_or_404(User, id=user_id)
+
+        # Не позволяем отозвать права у самого себя
+        if user == request.user:
+            messages.error(request, 'Вы не можете отозвать права администратора у самого себя!')
+            return redirect('admin_promotion')
+
+        try:
+            user_profile = user.userprofile
+            # Меняем роль на соискателя (или другую базовую роль)
+            user_profile.role = 'applicant'
+            user_profile.save()
+
+            messages.success(request, f'Права администратора отозваны у пользователя {user.username}')
+        except UserProfile.DoesNotExist:
+            messages.error(request, 'Профиль пользователя не найден')
+
+    return redirect('admin_promotion')
+
+
+@login_required
+@user_passes_test(is_admin)
+def role_approval_list(request):
+    """Список запросов на подтверждение ролей HR и университетов"""
+    pending_requests = RoleApprovalRequest.objects.filter(status='pending').select_related('user')
+    approved_requests = RoleApprovalRequest.objects.filter(status='approved').select_related('user')[
+                        :10]  # Последние 10
+    rejected_requests = RoleApprovalRequest.objects.filter(status='rejected').select_related('user')[
+                        :10]  # Последние 10
+
+    context = {
+        'pending_requests': pending_requests,
+        'approved_requests': approved_requests,
+        'rejected_requests': rejected_requests,
+    }
+    return render(request, 'career_app/role_approval_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_role(request, request_id, action):
+    """Подтверждение или отклонение роли"""
+    role_request = get_object_or_404(RoleApprovalRequest, id=request_id)
+
+    if action == 'approve':
+        role_request.status = 'approved'
+        role_request.reviewed_at = timezone.now()
+        role_request.reviewed_by = request.user
+
+        # Обновляем профиль пользователя
+        user_profile = role_request.user.userprofile
+        user_profile.is_approved = True
+        user_profile.save()
+
+        # Подтверждаем компанию или учебное заведение
+        if role_request.requested_role == 'hr' and user_profile.company:
+            user_profile.company.is_approved = True
+            user_profile.company.save()
+        elif role_request.requested_role == 'university' and user_profile.institution:
+            user_profile.institution.is_approved = True
+            user_profile.institution.save()
+
+        messages.success(request, f'Роль для пользователя {role_request.user.username} подтверждена!')
+
+    elif action == 'reject':
+        role_request.status = 'rejected'
+        role_request.reviewed_at = timezone.now()
+        role_request.reviewed_by = request.user
+
+        # Можно также отправить уведомление пользователю
+        messages.success(request, f'Запрос роли для пользователя {role_request.user.username} отклонен!')
+
+    role_request.save()
+    return redirect('role_approval_list')

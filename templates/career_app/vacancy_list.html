@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% block content %}
 <div class="container mt-4">
     <h1>Вакансии и стажировки</h1>
@@ -11,25 +10,25 @@
             <div class="row">
                 <div class="col-md-8">
                     <form method="get" class="d-flex">
-                    <input type="text" name="q" class="form-control me-2"
-                           placeholder="Поиск по названию, описанию или компании..."
-                           value="{% if query %}{{ query }}{% endif %}"
-                           style="transition: none !important;">
-                    <button class="btn btn-primary" type="submit" style="transition: none !important;">Найти</button>
-                </form>
+                        <input type="text" name="q" class="form-control me-2"
+                               placeholder="Поиск по названию, описанию или компании..."
+                               value="{% if query %}{{ query }}{% endif %}"
+                               style="transition: none !important;">
+                        <button class="btn btn-primary" type="submit" style="transition: none !important;">Найти</button>
+                    </form>
                 </div>
                 <div class="col-md-4">
                     <div class="btn-group w-100" role="group">
-                        <a href="?type=all{% if query %}&q={{ query }}{% endif %}"
-                           class="btn btn-outline-primary {% if filter_type == 'all' %}active{% endif %}">
+                        <a href="#" class="btn btn-outline-primary {% if filter_type == 'all' %}active{% endif %}"
+                           onclick="updateTypeFilter('all')">
                             Все ({{ total_count }})
                         </a>
-                        <a href="?type=vacancies{% if query %}&q={{ query }}{% endif %}"
-                           class="btn btn-outline-primary {% if filter_type == 'vacancies' %}active{% endif %}">
+                        <a href="#" class="btn btn-outline-primary {% if filter_type == 'vacancies' %}active{% endif %}"
+                           onclick="updateTypeFilter('vacancies')">
                             Вакансии ({{ vacancies_count }})
                         </a>
-                        <a href="?type=internships{% if query %}&q={{ query }}{% endif %}"
-                           class="btn btn-outline-primary {% if filter_type == 'internships' %}active{% endif %}">
+                        <a href="#" class="btn btn-outline-primary {% if filter_type == 'internships' %}active{% endif %}"
+                           onclick="updateTypeFilter('internships')">
                             Стажировки ({{ internships_count }})
                         </a>
                     </div>
@@ -37,23 +36,97 @@
             </div>
         </div>
     </div>
-<div class="row mt-3">
-    <div class="col-md-12">
-        <label class="form-label"><strong>Фильтр по категории:</strong></label>
-        <div class="btn-group flex-wrap" role="group">
-            <a href="?{% if query %}q={{ query }}&{% endif %}{% if filter_type != 'all' %}type={{ filter_type }}&{% endif %}"
-               class="btn btn-outline-secondary {% if not category_id %}active{% endif %}">
-                Все категории
-            </a>
-            {% for category in categories %}
-            <a href="?{% if query %}q={{ query }}&{% endif %}{% if filter_type != 'all' %}type={{ filter_type }}&{% endif %}category={{ category.id }}"
-               class="btn btn-outline-secondary {% if category_id == category.id|stringformat:'i' %}active{% endif %}">
-                {{ category.name }}
-            </a>
-            {% endfor %}
+
+    <!-- Все основные категории -->
+    <div class="card mb-4 categories-card">
+        <div class="card-body">
+            <h6 class="card-title mb-3">Все категории</h6>
+            <div class="d-flex flex-wrap gap-2">
+                {% for main_category in main_categories %}
+                <div class="custom-dropdown">
+                    <button class="btn btn-outline-{% cycle 'primary' 'success' 'warning' 'info' 'dark' 'secondary' 'danger' %} dropdown-toggle"
+                            type="button"
+                            onclick="toggleDropdown(this)">
+                        {{ main_category.name }}
+                        {% if main_category.has_selected %}
+                        <span class="badge bg-primary ms-1">{{ main_category.selected_count }}</span>
+                        {% endif %}
+                    </button>
+                    <div class="custom-dropdown-menu">
+                        {% for category in all_categories %}
+                        {% if category.parent and category.parent.id == main_category.id %}
+                        <label class="custom-dropdown-item checkbox-item">
+                            <input type="checkbox"
+                                   name="category"
+                                   value="{{ category.id }}"
+                                   {% if category.id in selected_categories %}checked{% endif %}
+                                   onchange="updateCategoryFilter(this)">
+                            <span class="checkmark"></span>
+                            {{ category.name }}
+                        </label>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Кнопки управления выбранными категориями -->
+            {% if selected_categories %}
+            <div class="mt-3 pt-3 border-top">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        Выбрано категорий: <strong>{{ selected_categories|length }}</strong>
+                    </small>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllCategories()">
+                        Очистить все
+                    </button>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
-</div>
+
+    <!-- Активные фильтры -->
+    {% if selected_categories or query or filter_type != 'all' %}
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center">
+                <strong class="me-2">Активные фильтры:</strong>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if query %}
+                    <span class="badge bg-primary">
+                        Поиск: "{{ query }}"
+                        <a href="#" class="text-white ms-1" style="text-decoration: none;"
+                           onclick="removeSearch(event)">×</a>
+                    </span>
+                    {% endif %}
+
+                    {% if filter_type != 'all' %}
+                    <span class="badge bg-info">
+                        Тип: {% if filter_type == 'vacancies' %}Вакансии{% else %}Стажировки{% endif %}
+                        <a href="#" class="text-white ms-1" style="text-decoration: none;"
+                           onclick="removeTypeFilter(event)">×</a>
+                    </span>
+                    {% endif %}
+
+                    {% for cat_id in selected_categories %}
+                        {% for category in all_categories %}
+                            {% if category.id == cat_id %}
+                            <span class="badge bg-secondary">
+                                {{ category.name }}
+                                <a href="#" class="text-white ms-1" style="text-decoration: none;"
+                                   onclick="removeCategory({{ category.id }}, event)">×</a>
+                            </span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Статистика -->
     <div class="row mb-4">
         <div class="col-md-4">
@@ -167,7 +240,7 @@
                 Нет вакансий или стажировок, соответствующих вашему запросу
             {% endif %}
         </p>
-        {% if query or filter_type != 'all' %}
+        {% if query or selected_categories or filter_type != 'all' %}
         <a href="{% url 'vacancy_list' %}" class="btn btn-primary">Показать все предложения</a>
         {% endif %}
     </div>
@@ -179,7 +252,7 @@
         <ul class="pagination justify-content-center">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}">Назад</a>
+                <a class="page-link" href="#" onclick="navigateToPage({{ page_obj.previous_page_number }}, event)">Назад</a>
             </li>
             {% endif %}
 
@@ -190,18 +263,335 @@
                     </li>
                 {% else %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}">{{ num }}</a>
+                        <a class="page-link" href="#" onclick="navigateToPage({{ num }}, event)">{{ num }}</a>
                     </li>
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}">Вперед</a>
+                <a class="page-link" href="#" onclick="navigateToPage({{ page_obj.next_page_number }}, event)">Вперед</a>
             </li>
             {% endif %}
         </ul>
     </nav>
     {% endif %}
 </div>
+
+<style>
+/* Кастомные стили для выпадающих меню */
+.custom-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.custom-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 250px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    z-index: 9999;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 5px;
+    padding: 8px 0;
+}
+
+.custom-dropdown-menu.show {
+    display: block;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    color: #212529;
+    text-decoration: none;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin: 0;
+}
+
+.checkbox-item:hover {
+    background-color: #f8f9fa;
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin-right: 8px;
+    transform: scale(1.2);
+}
+
+/* Кастомные чекбоксы */
+.checkbox-item {
+    position: relative;
+    padding-left: 35px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.checkbox-item input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+    height: 20px;
+    width: 20px;
+    background-color: #eee;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.checkbox-item:hover input ~ .checkmark {
+    background-color: #ccc;
+}
+
+.checkbox-item input:checked ~ .checkmark {
+    background-color: #0d6efd;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkbox-item input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-item .checkmark:after {
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* Остальные стили */
+.form-select[multiple] {
+    min-height: 120px;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 12px;
+}
+
+.btn {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.badge {
+    font-size: 0.85em;
+    padding: 0.5em 0.75em;
+}
+
+.badge a {
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.badge a:hover {
+    opacity: 1;
+}
+
+/* Гарантируем, что карточка с категориями имеет нормальный z-index */
+.categories-card {
+    position: relative;
+    z-index: 2;
+}
+</style>
+
+<script>
+// Текущие выбранные категории
+let selectedCategories = new Set([{% for cat in selected_categories %}{{ cat }},{% endfor %}]);
+
+// Функция для обновления URL с текущими параметрами
+function updateURL(params = {}) {
+    const urlParams = new URLSearchParams();
+
+    // Добавляем выбранные категории
+    selectedCategories.forEach(cat => {
+        urlParams.append('category', cat);
+    });
+
+    // Добавляем тип фильтра (если указан)
+    if (params.type) {
+        urlParams.set('type', params.type);
+    } else if ('{{ filter_type }}' !== 'all') {
+        urlParams.set('type', '{{ filter_type }}');
+    }
+
+    // Добавляем поисковый запрос (если есть и не None)
+    const currentQuery = '{{ query }}';
+    if (currentQuery && currentQuery !== 'None') {
+        urlParams.set('q', currentQuery);
+    }
+
+    // Добавляем номер страницы (если указан)
+    if (params.page) {
+        urlParams.set('page', params.page);
+    }
+
+    // Обновляем URL и перезагружаем страницу
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.location.href = newUrl;
+}
+
+// Функция для обновления фильтра категорий
+function updateCategoryFilter(checkbox) {
+    const categoryId = parseInt(checkbox.value);
+
+    if (checkbox.checked) {
+        selectedCategories.add(categoryId);
+    } else {
+        selectedCategories.delete(categoryId);
+    }
+
+    updateURL();
+}
+
+// Функция для обновления типа фильтра (Все/Вакансии/Стажировки)
+function updateTypeFilter(type) {
+    updateURL({ type: type });
+}
+
+// Функция для навигации по страницам
+function navigateToPage(page, event) {
+    if (event) event.preventDefault();
+    updateURL({ page: page });
+}
+
+// Функция для удаления одной категории
+function removeCategory(categoryId, event) {
+    if (event) event.preventDefault();
+    selectedCategories.delete(categoryId);
+    updateURL();
+}
+
+// Функция для удаления поискового запроса
+function removeSearch(event) {
+    if (event) event.preventDefault();
+    // Просто перезагружаем страницу без поискового запроса
+    const urlParams = new URLSearchParams();
+
+    // Добавляем выбранные категории
+    selectedCategories.forEach(cat => {
+        urlParams.append('category', cat);
+    });
+
+    // Добавляем тип фильтра
+    if ('{{ filter_type }}' !== 'all') {
+        urlParams.set('type', '{{ filter_type }}');
+    }
+
+    window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+}
+
+// Функция для удаления фильтра типа
+function removeTypeFilter(event) {
+    if (event) event.preventDefault();
+    updateURL({ type: 'all' });
+}
+
+// Функция для очистки всех категорий
+function clearAllCategories() {
+    selectedCategories.clear();
+    updateURL();
+}
+
+// Кастомная логика для выпадающих меню
+function toggleDropdown(button) {
+    // Закрываем все остальные выпадающие меню
+    const allMenus = document.querySelectorAll('.custom-dropdown-menu');
+    allMenus.forEach(menu => {
+        if (menu !== button.nextElementSibling) {
+            menu.classList.remove('show');
+        }
+    });
+
+    // Переключаем текущее меню
+    const menu = button.nextElementSibling;
+    menu.classList.toggle('show');
+}
+
+// Закрываем выпадающие меню при клике вне их
+document.addEventListener('click', function(event) {
+    const dropdowns = document.querySelectorAll('.custom-dropdown');
+    dropdowns.forEach(dropdown => {
+        if (!dropdown.contains(event.target)) {
+            const menu = dropdown.querySelector('.custom-dropdown-menu');
+            if (menu) {
+                menu.classList.remove('show');
+            }
+        }
+    });
+});
+
+// Закрываем выпадающие меню при нажатии Escape
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const menus = document.querySelectorAll('.custom-dropdown-menu');
+        menus.forEach(menu => {
+            menu.classList.remove('show');
+        });
+    }
+});
+
+// Обновляем отображение чекбоксов при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Убеждаемся, что все чекбоксы синхронизированы с selectedCategories
+    const checkboxes = document.querySelectorAll('input[name="category"]');
+    checkboxes.forEach(checkbox => {
+        const categoryId = parseInt(checkbox.value);
+        checkbox.checked = selectedCategories.has(categoryId);
+    });
+});
+</script>
 {% endblock %}

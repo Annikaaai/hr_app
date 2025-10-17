@@ -40,9 +40,6 @@
         </li>
         {% if user.userprofile.role == 'admin' %}
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'moderation_list' %}">Модерация</a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="{% url 'analytics' %}">Аналитика</a>
             </li>
         {% elif user.userprofile.role == 'hr' %}
@@ -66,7 +63,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Войти</a>
+                            <a class="nav-link" href="{% url 'role_selection' %}">Войти</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'register' %}">Регистрация</a>
