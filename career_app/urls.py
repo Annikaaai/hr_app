@@ -45,4 +45,10 @@ urlpatterns = [
 
     # Аналитика (админ)
     path('analytics/', views.analytics, name='analytics'),
+
+# Чат
+    path('chats/', views.chat_list, name='chat_list'),
+    path('chats/<int:thread_id>/', views.chat_detail, name='chat_detail'),
+    path('chats/create-from-application/<int:application_id>/', views.create_chat_from_application, name='create_chat_from_application'),
+    path('chats/create-from-internship/<int:response_id>/', views.create_chat_from_internship_response, name='create_chat_from_internship_response'),
 ]

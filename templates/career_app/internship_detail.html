@@ -56,35 +56,60 @@
                 <div class="card-body">
                     <h5 class="card-title">Откликнуться на стажировку</h5>
 
-                    {% if not can_apply %}
-                        {% if not user.is_authenticated %}
-                        <div class="alert alert-warning">
-                            <p>Для отклика на стажировку необходимо войти в систему как соискатель.</p>
-                            <a href="{% url 'login' %}" class="btn btn-primary btn-sm">Войти</a>
-                            <a href="{% url 'register' %}" class="btn btn-outline-primary btn-sm">Зарегистрироваться</a>
-                        </div>
-                        {% elif user.userprofile.role != 'applicant' %}
-                        <div class="alert alert-info">
-                            Откликаться на стажировки могут только соискатели.
-                            <br><small>Ваша текущая роль: {{ user.userprofile.get_role_display }}</small>
-                            <br><small>Если вы студент, измените роль в <a href="{% url 'profile_setup' %}">настройках профиля</a></small>
-                        </div>
-                        {% elif not applicant %}
-                        <div class="alert alert-warning">
-                            <p>Для отклика на стажировку необходимо заполнить профиль соискателя.</p>
-                            <a href="{% url 'create_applicant_profile' %}" class="btn btn-primary btn-sm">Заполнить профиль</a>
-                        </div>
-                        {% endif %}
+                    {% if internship.status != 'published' %}
+                    <div class="alert alert-warning">
+                        <p>На эту стажировку пока нельзя откликнуться.</p>
+                        <p><strong>Статус:</strong> {{ internship.get_status_display }}</p>
+                    </div>
                     {% else %}
-                        <form method="post">
-                            {% csrf_token %}
-                            <div class="mb-3">
-                                <label for="cover_letter" class="form-label">Сопроводительное письмо</label>
-                                <textarea name="cover_letter" id="cover_letter" rows="4" class="form-control"
-                                          placeholder="Расскажите почему вы хотите пройти эту стажировку и чем вы полезны..."></textarea>
+                        {% if user.is_authenticated %}
+                            {% if user.userprofile.role == 'applicant' %}
+                                {% if not user.applicant %}
+                                <div class="alert alert-warning">
+                                    <p>Для отклика на стажировку необходимо заполнить профиль соискателя.</p>
+                                    <a href="{% url 'create_applicant_profile' %}" class="btn btn-primary btn-sm">Заполнить профиль</a>
+                                </div>
+                                {% elif has_applied %}
+                                <div class="alert alert-success">
+                                    <p class="mb-2">Вы уже откликнулись на эту стажировку</p>
+                                    {% if show_chat_button and chat_thread %}
+                                    <div class="mt-3">
+                                        <a href="{% url 'chat_detail' chat_thread.id %}" class="btn btn-success btn-lg w-100">
+                                            Перейти в чат с вузом
+                                        </a>
+                                        <p class="text-muted small mt-2">Чат создан и готов к общению</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label for="cover_letter" class="form-label">Сопроводительное письмо</label>
+                                        <textarea name="cover_letter" id="cover_letter" rows="4" class="form-control"
+                                                  placeholder="Расскажите почему вы хотите пройти эту стажировку и чем вы полезны..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-success w-100">Отправить отклик</button>
+                                    <p class="text-muted small mt-2">После отправки отклика сразу откроется чат с представителем вуза</p>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                            <div class="alert alert-info">
+                                Откликаться на стажировки могут только соискатели.
+                                {% if user.userprofile.role != 'applicant' %}
+                                <br><small>Ваша текущая роль: {{ user.userprofile.get_role_display }}</small>
+                                {% endif %}
                             </div>
-                            <button type="submit" class="btn btn-success w-100">Отправить отклик</button>
-                        </form>
+                            {% endif %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <p>Для отклика на стажировку необходимо войти в систему.</p>
+                                <div class="mt-2">
+                                    <a href="{% url 'login' %}" class="btn btn-primary btn-sm">Войти</a>
+                                    <a href="{% url 'register' %}" class="btn btn-outline-primary btn-sm">Зарегистрироваться</a>
+                                </div>
+                            </div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -96,6 +121,11 @@
                     <h6>Управление стажировкой</h6>
                     <p class="small text-muted">Статус: <strong>{{ internship.get_status_display }}</strong></p>
                     <p class="small text-muted">Откликов соискателей: <strong>{{ internship.internshipresponse_set.count }}</strong></p>
+
+                    <!-- Кнопка перехода к чатам для университета -->
+                    <div class="mt-2">
+                        <a href="{% url 'chat_list' %}" class="btn btn-outline-primary btn-sm">Перейти к чатам с соискателями</a>
+                    </div>
                 </div>
             </div>
             {% endif %}

@@ -38,6 +38,9 @@
         <li class="nav-item">
             <a class="nav-link" href="{% url 'dashboard' %}">Личный кабинет</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'chat_list' %}">Чаты</a>
+        </li>
         {% if user.userprofile.role == 'admin' %}
             <li class="nav-item">
                 <a class="nav-link" href="{% url 'analytics' %}">Аналитика</a>

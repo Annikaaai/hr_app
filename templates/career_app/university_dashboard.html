@@ -6,7 +6,7 @@
     <h4 class="text-muted">{{ institution.name }}</h4>
 
     <div class="row mt-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
                     <h5 class="card-title">Мои стажировки</h5>
@@ -16,7 +16,7 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
                     <h5 class="card-title">Опубликовано</h5>
@@ -26,7 +26,7 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
                     <h5 class="card-title">На модерации</h5>
@@ -35,10 +35,20 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Отклики</h5>
+                    <p class="display-4">{{ total_responses }}</p>
+                    <small class="text-muted">всего откликов</small>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row mt-4">
-        <div class="col-md-12">
+        <div class="col-md-6">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>Мои заявки на стажировки</h3>
                 <a href="{% url 'create_internship' %}" class="btn btn-primary">+ Новая заявка</a>
@@ -62,6 +72,11 @@
                             <p class="card-text">
                                 {{ internship.description|truncatewords:30 }}
                             </p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    Откликов: {{ internship.internshipresponse_set.count }}
+                                </small>
+                            </p>
                         </div>
                         <div class="text-end">
                             <span class="badge bg-{% if internship.status == 'published' %}success{% elif internship.status == 'moderation' %}warning{% elif internship.status == 'rejected' %}danger{% else %}secondary{% endif %} mb-2">
@@ -81,6 +96,33 @@
                 <p class="text-muted">Создайте первую заявку для размещения в системе</p>
                 <a href="{% url 'create_internship' %}" class="btn btn-primary">Создать заявку</a>
             </div>
+            {% endfor %}
+        </div>
+
+        <div class="col-md-6">
+            <h3>Последние отклики</h3>
+            {% for response in internship_responses|slice:":5" %}
+            <div class="card mb-2">
+                <div class="card-body">
+                    <h6>{{ response.applicant.first_name }} {{ response.applicant.last_name }}</h6>
+                    <p class="mb-1">На стажировку: {{ response.internship.title }}</p>
+                    <span class="badge bg-{% if response.status == 'new' %}warning{% elif response.status == 'reviewed' %}info{% elif response.status == 'invited' %}success{% else %}danger{% endif %}">
+                        {{ response.get_status_display }}
+                    </span>
+                    <small class="text-muted d-block mt-1">{{ response.applied_at|date:"d.m.Y H:i" }}</small>
+
+                    <!-- Кнопка перехода в чат -->
+                    {% with chat_thread=response.internship.chatthread_set.filter|first %}
+                    <div class="mt-2">
+                        <a href="{% url 'create_chat_from_internship_response' response.id %}" class="btn btn-sm btn-outline-primary">
+                            Перейти в чат
+                        </a>
+                    </div>
+                    {% endwith %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted">Пока нет откликов на стажировки</p>
             {% endfor %}
         </div>
     </div>

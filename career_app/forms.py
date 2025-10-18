@@ -119,3 +119,24 @@ class AdminPromotionForm(forms.Form):
         # Исключаем пользователей, которые уже админы
         admin_users = UserProfile.objects.filter(role='admin').values_list('user_id', flat=True)
         self.fields['user'].queryset = User.objects.exclude(id__in=admin_users)
+
+
+# forms.py - добавить новые формы
+class ChatMessageForm(forms.ModelForm):
+    class Meta:
+        model = ChatMessage
+        fields = ['message', 'file']
+        widgets = {
+            'message': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': 'Введите ваше сообщение...',
+                'class': 'form-control'
+            }),
+            'file': forms.FileInput(attrs={
+                'class': 'form-control'
+            })
+        }
+        labels = {
+            'message': 'Сообщение',
+            'file': 'Прикрепить файл'
+        }
