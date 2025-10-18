@@ -4,8 +4,8 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('role-selection/', views.role_selection, name='role_selection'),
-    path('login/', views.custom_login, name='custom_login'),
+    path('login/', views.role_selection, name='role_selection'),
+
     path('register/', views.register, name='register'),
     path('pending-approval/', views.pending_approval, name='pending_approval'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
