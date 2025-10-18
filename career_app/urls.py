@@ -3,10 +3,10 @@ from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
+    # Основные URLs
     path('', views.home, name='home'),
     path('role_selection/', views.role_selection, name='role_selection'),
     path('login/', views.custom_login, name='custom_login'),
-
     path('register/', views.register, name='register'),
     path('pending-approval/', views.pending_approval, name='pending_approval'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
@@ -47,29 +47,32 @@ urlpatterns = [
     # Аналитика (админ)
     path('analytics/', views.analytics, name='analytics'),
 
-# Чат
+    # Чат
     path('chats/', views.chat_list, name='chat_list'),
     path('chats/<int:thread_id>/', views.chat_detail, name='chat_detail'),
     path('chats/create-from-application/<int:application_id>/', views.create_chat_from_application, name='create_chat_from_application'),
     path('chats/create-from-internship/<int:response_id>/', views.create_chat_from_internship_response, name='create_chat_from_internship_response'),
 
-    # ИИ-поиск
+    # ИИ-поиск - основной дашборд
     path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
-    path('ai-search/candidate-profile/create/', views.create_ideal_candidate_profile,
-         name='create_ideal_candidate_profile'),
-    path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
-    path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
-    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
-    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.create_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
 
-path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
+    # ИИ-поиск для HR (кандидаты)
+    path('ai-search/candidate-profile/create/', views.create_ideal_candidate_profile, name='create_ideal_candidate_profile'),
+    path('ai-search/candidate-profile/edit/<int:profile_id>/', views.edit_ideal_candidate_profile, name='edit_ideal_candidate_profile'),
+    path('ai-search/candidate-results/<int:profile_id>/', views.ai_candidate_results, name='ai_candidate_results'),
+
+    # ИИ-поиск для соискателей (вакансии)
     path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
-    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.create_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
+    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.edit_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
+    path('ai-search/vacancy-results/<int:profile_id>/', views.ai_vacancy_results, name='ai_vacancy_results'),
+
+    # Общие URLs для ИИ-поиска
     path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
     path('ai-search/run/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
+    path('ai-search/force/<int:profile_id>/', views.force_ai_search, name='force_ai_search'),
+    path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
 
-
-
+    # Резюме
     path('applicant/resume/', views.create_or_edit_resume, name='create_or_edit_resume'),
     path('applicant/resume/view/', views.applicant_resume_view, name='applicant_resume_view'),
     path('resume/<int:applicant_id>/', views.applicant_resume_view, name='view_resume'),
@@ -77,38 +80,5 @@ path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
     # AJAX URLs
     path('ajax/get-subcategories/', views.get_subcategories, name='get_subcategories'),
     path('ajax/get-skills/', views.get_skills, name='get_skills'),
-
     path('get-subcategories/', views.get_subcategories, name='get_subcategories'),
-
-path('force-ai-search/<int:profile_id>/', views.force_ai_search, name='force_ai_search'),
-path('run-ai-search/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
-    path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
-path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
-    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.edit_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
-    path('ai-search/vacancy-results/<int:profile_id>/', views.ai_vacancy_results, name='ai_vacancy_results'),
-    path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
-
-
-    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
-path('ai-search/run/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
-    path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
-
-
-path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
-
-# URLs для профилей кандидатов (HR)
-path('ai-search/candidate-profile/create/', views.create_ideal_candidate_profile, name='create_ideal_candidate_profile'),
-path('ai-search/candidate-profile/edit/<int:profile_id>/', views.edit_ideal_candidate_profile, name='edit_ideal_candidate_profile'),
-
-# URLs для профилей вакансий (Соискатели)
-path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
-path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.edit_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
-
-# Универсальный URL для результатов поиска
-path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
-
-# Общие URLs для поиска
-path('ai-search/run/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
-path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
-
 ]
