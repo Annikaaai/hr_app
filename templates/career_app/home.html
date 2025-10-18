@@ -29,9 +29,6 @@
                         <a href="{% url 'vacancy_list' %}" class="btn btn-primary-lg">
                             <i class="fas fa-search me-2"></i>Найти вакансии
                         </a>
-                        <a href="#features" class="btn btn-outline-lg scroll-to">
-                            <i class="fas fa-play-circle me-2"></i>Узнать больше
-                        </a>
                     </div>
 
                     <div class="hero-stats mt-5" style="opacity: 0; animation: fadeInUp 0.8s ease-out 1.2s forwards;">
@@ -304,11 +301,11 @@
                     </div>
 
                     <div class="innovation-actions">
-                        <a href="#" class="btn btn-primary-lg">
-                            <i class="fas fa-rocket me-2"></i>Присоединиться к экосистеме
+                        <a href="{% url 'vacancy_list' %}" class="btn btn-primary-lg">
+                            <i class="fas fa-search me-2"></i>Найти вакансии
                         </a>
-                        <a href="#" class="btn btn-outline-lg">
-                            <i class="fas fa-play-circle me-2"></i>Смотреть видео
+                        <a href="{% url 'register' %}" class="btn btn-outline-lg">
+                            <i class="fas fa-user-plus me-2"></i>Зарегистрироваться
                         </a>
                     </div>
                 </div>
