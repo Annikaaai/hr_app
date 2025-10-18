@@ -41,8 +41,8 @@ class AIMatcher:
             return 0
 
         # Извлекаем ключевые концепции
-        concepts1 = SmartAIMatcher.extract_key_concepts(text1)
-        concepts2 = SmartAIMatcher.extract_key_concepts(text2)
+        concepts1 = AIMatcher.extract_key_concepts(text1)
+        concepts2 = AIMatcher.extract_key_concepts(text2)
 
         if not concepts1 or not concepts2:
             return 0
@@ -110,30 +110,27 @@ class AIMatcher:
 
     @staticmethod
     def match_candidate_with_profile(applicant, ideal_profile):
-        """Умное сопоставление кандидата с идеальным профилем"""
-        # Собираем данные кандидата
-        applicant_text = f"""
-        {applicant.resume_text or ''}
-        {applicant.first_name} {applicant.last_name}
-        """
+        """Сопоставляет кандидата с идеальным профилем"""
+        # Используем полный текст резюме из новых полей
+        applicant_text = applicant.get_full_resume_text()
 
         # Смысловая схожесть
-        semantic_similarity = SmartAIMatcher.calculate_semantic_similarity(
+        semantic_similarity = AIMatcher.calculate_semantic_similarity(
             applicant_text,
             ideal_profile.ideal_resume
         )
 
         # Извлекаем и сравниваем требования
-        applicant_skills = SmartAIMatcher.extract_requirements(applicant_text)
-        required_skills = SmartAIMatcher.extract_requirements(
+        applicant_skills = AIMatcher.extract_requirements(applicant_text)
+        required_skills = AIMatcher.extract_requirements(
             ideal_profile.ideal_resume + " " + ideal_profile.required_skills
         )
 
         # Схожесть требований
-        skills_match = SmartAIMatcher.calculate_skills_match(applicant_skills, required_skills)
+        skills_match = AIMatcher.calculate_skills_match(applicant_skills, required_skills)
 
         # Опыт работы (определяем по контексту)
-        experience_match = SmartAIMatcher.match_experience_by_context(
+        experience_match = AIMatcher.match_experience_by_context(
             applicant_text,
             ideal_profile.experience_level
         )
@@ -151,7 +148,7 @@ class AIMatcher:
             'experience_match': experience_match,
             'final_score': final_score,
             'matched_concepts': applicant_skills[:10],  # Топ-10 совпадений
-            'explanation': SmartAIMatcher.generate_explanation(
+            'explanation': AIMatcher.generate_explanation(
                 semantic_similarity, skills_match, experience_match
             )
         }
@@ -196,16 +193,28 @@ class AIMatcher:
             level_weights[level] = weight
 
         # Определяем доминирующий уровень
+        if not level_weights:
+            return 0
+
         dominant_level = max(level_weights.items(), key=lambda x: x[1])[0]
 
         # Сравниваем с целевым уровнем
         if dominant_level == target_experience.lower():
             return 100
-        elif abs(list(experience_keywords.keys()).index(dominant_level) -
-                 list(experience_keywords.keys()).index(target_experience.lower())) == 1:
-            return 70  # Соседний уровень
-        else:
-            return 30  # Далекий уровень
+
+        # Получаем список уровней для сравнения позиций
+        levels = list(experience_keywords.keys())
+        try:
+            dominant_index = levels.index(dominant_level)
+            target_index = levels.index(target_experience.lower())
+            level_diff = abs(dominant_index - target_index)
+
+            if level_diff == 1:
+                return 70  # Соседний уровень
+            else:
+                return 30  # Далекий уровень
+        except ValueError:
+            return 30  # Если уровень не найден
 
     @staticmethod
     def generate_explanation(semantic, skills, experience):
@@ -234,11 +243,12 @@ class AIMatcher:
     @staticmethod
     def find_candidates_for_hr(ideal_profile):
         """Умный поиск кандидатов"""
-        applicants = Applicant.objects.all()
+        # Ищем только опубликованные резюме
+        applicants = Applicant.objects.filter(is_published=True)
         matches = []
 
         for applicant in applicants:
-            match_result = SmartAIMatcher.match_candidate_with_profile(applicant, ideal_profile)
+            match_result = AIMatcher.match_candidate_with_profile(applicant, ideal_profile)
 
             if match_result['final_score'] >= ideal_profile.min_match_percentage:
                 matches.append({
@@ -273,7 +283,7 @@ class AIMatcher:
             vacancy_text = f"{vacancy.title} {vacancy.description} {vacancy.requirements}"
             ideal_text = f"{ideal_profile.ideal_position} {ideal_profile.desired_skills}"
 
-            semantic_similarity = SmartAIMatcher.calculate_semantic_similarity(
+            semantic_similarity = AIMatcher.calculate_semantic_similarity(
                 vacancy_text, ideal_text
             )
 

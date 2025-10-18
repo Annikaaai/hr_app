@@ -13,11 +13,7 @@
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
-                        <h5>Роль в системе</h5>
-                        {{ user_profile_form|crispy }}
-
                         {% if applicant_form %}
-                        <hr>
                         <h5>Данные для откликов на вакансии</h5>
                         <div class="row">
                             <div class="col-md-6">
@@ -35,8 +31,6 @@
                                 {{ applicant_form.phone|as_crispy_field }}
                             </div>
                         </div>
-                        {{ applicant_form.resume_file|as_crispy_field }}
-                        {{ applicant_form.resume_text|as_crispy_field }}
                         {% endif %}
 
                         <div class="mt-4">

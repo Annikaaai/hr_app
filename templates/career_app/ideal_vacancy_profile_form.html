@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row">
-        <div class="col-md-8 mx-auto">
+        <div class="col-md-10 mx-auto">
             <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">Создание идеального профиля вакансии</h4>
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">💼 Создание идеального профиля вакансии</h4>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-4">
@@ -14,48 +15,248 @@
                         на основе смыслового анализа.
                     </p>
 
-                    <form method="post">
+                    <form method="post" id="vacancyProfileForm">
                         {% csrf_token %}
 
-                        {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.help_text %}
-                            <div class="form-text">{{ field.help_text }}</div>
-                            {% endif %}
-                            {% if field.errors %}
+                        <!-- Основная информация -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.title.label }}</label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.title.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.min_match_percentage.label }}</label>
+                                    {{ form.min_match_percentage }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.max_vacancies.label }}</label>
+                                    {{ form.max_vacancies }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Категории -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.main_category.label }}</label>
+                                    {{ form.main_category }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.subcategory.label }}</label>
+                                    {{ form.subcategory }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Должность и навыки -->
+                        <div class="mb-4">
+                            <label class="form-label">{{ form.ideal_position.label }}</label>
+                            {{ form.ideal_position }}
+                        </div>
+
+                        <!-- Навыки (появятся после выбора подкатегории) -->
+                        <div class="mb-4" id="skills-section" style="display: none;">
+                            <label class="form-label">{{ form.selected_skill_tags.label }}</label>
+                            <div class="form-text">{{ form.selected_skill_tags.help_text }}</div>
+                            <div id="skills-container" class="mt-2 p-3 border rounded">
+                                <!-- Навыки будут загружены через AJAX -->
+                            </div>
+                            {% if form.selected_skill_tags.errors %}
                             <div class="text-danger">
-                                {% for error in field.errors %}
+                                {% for error in form.selected_skill_tags.errors %}
                                 <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
                             {% endif %}
                         </div>
-                        {% endfor %}
+
+                        <!-- Опыт и образование -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.experience_level.label }}</label>
+                                    {{ form.experience_level }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.education_level.label }}</label>
+                                    {{ form.education_level }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Условия работы -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.employment_types.label }}</label>
+                                    <div class="form-text">{{ form.employment_types.help_text }}</div>
+                                    {{ form.employment_types }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.work_schedule.label }}</label>
+                                    <div class="form-text">{{ form.work_schedule.help_text }}</div>
+                                    {{ form.work_schedule }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Зарплата и локация -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.desired_salary.label }}</label>
+                                    {{ form.desired_salary }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.location_preferences.label }}</label>
+                                    {{ form.location_preferences }}
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{% url 'ai_search_dashboard' %}" class="btn btn-secondary me-md-2">Отмена</a>
                             <button type="submit" class="btn btn-primary">
-                                Запустить умный поиск вакансий
+                                {% if form.instance.pk %}🔄 Обновить и запустить поиск{% else %}💼 Запустить умный поиск вакансий{% endif %}
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
 
+            <!-- Подсказки -->
             <div class="card mt-4">
                 <div class="card-body">
-                    <h5>Советы по заполнению:</h5>
+                    <h5>💡 Советы по заполнению:</h5>
                     <ul class="text-muted">
-                        <li>Описывайте желаемую работу естественным языком</li>
-                        <li>Указывайте не только должность, но и желаемые условия работы</li>
-                        <li>Чем подробнее описание, тем точнее будут результаты</li>
-                        <li>ИИ понимает разные формулировки и синонимы</li>
+                        <li>Начните с выбора основной категории и подкатегории - это позволит получить релевантные навыки</li>
+                        <li>Выбирайте только самые важные для вас навыки (до 10 штук)</li>
+                        <li>Чем точнее вы опишете требования, тем лучше будут результаты поиска</li>
+                        <li>ИИ учитывает все указанные параметры при поиске вакансий</li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- JavaScript для динамической загрузки подкатегорий и навыков -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const mainCategorySelect = document.getElementById('id_main_category');
+    const subcategorySelect = document.getElementById('id_subcategory');
+    const skillsSection = document.getElementById('skills-section');
+    const skillsContainer = document.getElementById('skills-container');
+
+    // Загрузка подкатегорий при изменении основной категории
+    mainCategorySelect.addEventListener('change', function() {
+        const mainCategoryId = this.value;
+
+        if (mainCategoryId) {
+            fetch(`/career/ajax/get-subcategories/?main_category_id=${mainCategoryId}`)
+                .then(response => response.json())
+                .then(data => {
+                    subcategorySelect.innerHTML = '<option value="">--- Выберите подкатегорию ---</option>';
+                    data.subcategories.forEach(subcat => {
+                        const option = document.createElement('option');
+                        option.value = subcat.id;
+                        option.textContent = subcat.name;
+                        subcategorySelect.appendChild(option);
+                    });
+                    skillsSection.style.display = 'none';
+                });
+        } else {
+            subcategorySelect.innerHTML = '<option value="">--- Сначала выберите основную категорию ---</option>';
+            skillsSection.style.display = 'none';
+        }
+    });
+
+    // Загрузка навыков при изменении подкатегории
+    subcategorySelect.addEventListener('change', function() {
+        const subcategoryId = this.value;
+
+        if (subcategoryId) {
+            fetch(`/career/ajax/get-skills/?subcategory_id=${subcategoryId}`)
+                .then(response => response.json())
+                .then(data => {
+                    skillsContainer.innerHTML = '';
+                    if (data.skills.length > 0) {
+                        data.skills.forEach(skill => {
+                            const checkbox = document.createElement('div');
+                            checkbox.className = 'form-check';
+                            checkbox.innerHTML = `
+                                <input class="form-check-input" type="checkbox" name="selected_skill_tags"
+                                       value="${skill.id}" id="skill_${skill.id}">
+                                <label class="form-check-label" for="skill_${skill.id}">
+                                    ${skill.name}
+                                </label>
+                            `;
+                            skillsContainer.appendChild(checkbox);
+                        });
+                        skillsSection.style.display = 'block';
+                    } else {
+                        skillsContainer.innerHTML = '<p class="text-muted">Для этой подкатегории пока нет навыков</p>';
+                        skillsSection.style.display = 'block';
+                    }
+                });
+        } else {
+            skillsSection.style.display = 'none';
+        }
+    });
+
+    // Ограничение выбора навыков до 10
+    skillsContainer.addEventListener('change', function(e) {
+        if (e.target.type === 'checkbox') {
+            const checkedSkills = skillsContainer.querySelectorAll('input[type="checkbox"]:checked');
+            if (checkedSkills.length > 10) {
+                e.target.checked = false;
+                alert('Можно выбрать не более 10 навыков');
+            }
+        }
+    });
+});
+</script>
+
+<style>
+.skill-tags-checkbox {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 10px;
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
+}
+
+.employment-checkbox, .schedule-checkbox {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+</style>
 {% endblock %}

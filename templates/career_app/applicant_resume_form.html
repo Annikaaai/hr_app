@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📝 Мое резюме</h2>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Имя *</label>
+                            {{ form.first_name }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Фамилия *</label>
+                            {{ form.last_name }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            {{ form.email }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Телефон</label>
+                            {{ form.phone }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Желаемая должность</label>
+                    {{ form.position }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Опыт работы</label>
+                    {{ form.experience }}
+                    <div class="form-text">Опишите ваш профессиональный опыт</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Образование</label>
+                    {{ form.education }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Навыки</label>
+                    {{ form.skills }}
+                    <div class="form-text">Ключевые профессиональные навыки</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">О себе</label>
+                    {{ form.about }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Текст резюме</label>
+                    {{ form.resume_text }}
+                    <div class="form-text">Или просто вставьте полный текст резюме</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Файл резюме (PDF/DOC)</label>
+                    {{ form.resume_file }}
+                </div>
+
+                <div class="mb-3 form-check">
+                    {{ form.is_published }}
+                    <label class="form-check-label">Разрешить компаниям находить мое резюме в ИИ-поиске</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">💾 Сохранить резюме</button>
+                <a href="{% url 'applicant_dashboard' %}" class="btn btn-secondary">Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -57,7 +57,16 @@ urlpatterns = [
     path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
     path('ai-search/candidate-profile/create/', views.create_ideal_candidate_profile,
          name='create_ideal_candidate_profile'),
-    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
     path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
     path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
+    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
+    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.create_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
+
+    path('applicant/resume/', views.create_or_edit_resume, name='create_or_edit_resume'),
+    path('applicant/resume/view/', views.applicant_resume_view, name='applicant_resume_view'),
+    path('resume/<int:applicant_id>/', views.applicant_resume_view, name='view_resume'),
+
+    # AJAX URLs
+    path('ajax/get-subcategories/', views.get_subcategories, name='get_subcategories'),
+    path('ajax/get-skills/', views.get_skills, name='get_skills'),
 ]

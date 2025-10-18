@@ -62,24 +62,26 @@
                 <div class="card-body">
                     <h5 class="card-title">Мои профили поиска</h5>
                     {% for profile in profiles %}
-                    <div class="border-bottom pb-2 mb-2">
-                        <h6>{{ profile.title }}</h6>
-                        <small class="text-muted">
-                            Совпадение: от {{ profile.min_match_percentage }}%<br>
-                            {% if user.userprofile.role == 'hr' %}
-                            Кандидатов: до {{ profile.max_candidates }}
-                            {% else %}
-                            Вакансий: до {{ profile.max_vacancies }}
-                            {% endif %}
-                        </small>
-                        <br>
-                        <a href="{% url 'ai_search_results' profile.id %}" class="btn btn-sm btn-outline-secondary mt-1">
-                            Результаты
-                        </a>
-                    </div>
-                    {% empty %}
-                    <p class="text-muted">Нет созданных профилей</p>
-                    {% endfor %}
+<div class="border-bottom pb-2 mb-2">
+    <h6>{{ profile.title }}</h6>
+    <small class="text-muted">
+        {% if profile.main_category %}
+        Категория: {{ profile.main_category.name }}<br>
+        {% endif %}
+        Совпадение: от {{ profile.min_match_percentage }}%<br>
+        Вакансий: до {{ profile.max_vacancies }}
+    </small>
+    <br>
+    <div class="btn-group btn-group-sm mt-1">
+        <a href="{% url 'ai_search_results' profile.id %}" class="btn btn-outline-secondary">
+            Результаты
+        </a>
+        <a href="{% url 'edit_ideal_vacancy_profile' profile.id %}" class="btn btn-outline-primary">
+            ✏️ Редактировать
+        </a>
+    </div>
+</div>
+{% endfor %}
                 </div>
             </div>
         </div>

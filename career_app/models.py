@@ -116,6 +116,15 @@ class Vacancy(models.Model):
     auto_close_at = models.DateTimeField(null=True, blank=True, verbose_name="Автоматическое закрытие")
 
     objects = models.Manager()
+    views = models.IntegerField(default=0, verbose_name="Просмотры")
+    salary_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                        verbose_name="Зарплата (число)")
+    location = models.CharField(max_length=200, blank=True, verbose_name="Местоположение")
+    employment_type = models.CharField(max_length=50, choices=[
+        ('full', 'Полная занятость'),
+        ('part', 'Частичная занятость'),
+        ('remote', 'Удаленная работа'),
+    ], default='full', verbose_name="Тип занятости")
 
     class Meta:
         verbose_name = "Вакансия"
@@ -172,11 +181,18 @@ class Applicant(models.Model):
     last_name = models.CharField(max_length=100, verbose_name="Фамилия")
     email = models.EmailField(verbose_name="Email")
     phone = models.CharField(max_length=20, verbose_name="Телефон")
+
+    # Новые поля для резюме
+    position = models.CharField(max_length=200, blank=True, verbose_name="Желаемая должность")
+    experience = models.TextField(blank=True, verbose_name="Опыт работы")
+    education = models.TextField(blank=True, verbose_name="Образование")
+    skills = models.TextField(blank=True, verbose_name="Навыки")
+    about = models.TextField(blank=True, verbose_name="О себе")
+
     resume_file = models.FileField(upload_to='resumes/', null=True, blank=True, verbose_name="Файл резюме")
     resume_text = models.TextField(blank=True, verbose_name="Текст резюме")
     created_at = models.DateTimeField(auto_now_add=True)
-
-    objects = models.Manager()
+    is_published = models.BooleanField(default=True, verbose_name="Резюме опубликовано")
 
     class Meta:
         verbose_name = "Соискатель"
@@ -184,6 +200,17 @@ class Applicant(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    def get_full_resume_text(self):
+        """Возвращает полный текст резюме для поиска"""
+        return f"""
+        Должность: {self.position}
+        Опыт работы: {self.experience}
+        Образование: {self.education}
+        Навыки: {self.skills}
+        О себе: {self.about}
+        {self.resume_text}
+        """
 
 
 class Application(models.Model):
@@ -199,7 +226,8 @@ class Application(models.Model):
     cover_letter = models.TextField(blank=True, verbose_name="Сопроводительное письмо")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
     applied_at = models.DateTimeField(auto_now_add=True)
-
+    source = models.CharField(max_length=50, default='website', verbose_name="Источник")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP адрес")
     objects = models.Manager()
 
     class Meta:
@@ -318,28 +346,71 @@ class ChatThread(models.Model):
     @classmethod
     def get_or_create_chat(cls, vacancy=None, internship=None, applicant=None, hr_user=None, university_user=None):
         """Создает или возвращает существующий чат"""
-        if vacancy and applicant:
-            thread, created = cls.objects.get_or_create(
-                vacancy=vacancy,
-                applicant=applicant,
-                defaults={
-                    'hr_user': hr_user,
-                    'is_active': True
-                }
-            )
-        elif internship and applicant:
-            thread, created = cls.objects.get_or_create(
-                internship=internship,
-                applicant=applicant,
-                defaults={
-                    'university_user': university_user,
-                    'is_active': True
-                }
-            )
-        else:
+        try:
+            if vacancy and applicant and hr_user:
+                # Ищем существующий чат
+                thread = cls.objects.filter(
+                    vacancy=vacancy,
+                    applicant=applicant,
+                    hr_user=hr_user,
+                    is_active=True
+                ).first()
+
+                if thread:
+                    return thread, False
+                else:
+                    # Создаем новый чат
+                    thread = cls.objects.create(
+                        vacancy=vacancy,
+                        applicant=applicant,
+                        hr_user=hr_user,
+                        is_active=True
+                    )
+                    return thread, True
+
+            elif internship and applicant and university_user:
+                # Аналогично для стажировок
+                thread = cls.objects.filter(
+                    internship=internship,
+                    applicant=applicant,
+                    university_user=university_user,
+                    is_active=True
+                ).first()
+
+                if thread:
+                    return thread, False
+                else:
+                    thread = cls.objects.create(
+                        internship=internship,
+                        applicant=applicant,
+                        university_user=university_user,
+                        is_active=True
+                    )
+                    return thread, True
+
+            else:
+                # Простой чат без привязки к вакансии/стажировке
+                thread = cls.objects.filter(
+                    applicant=applicant,
+                    hr_user=hr_user,
+                    is_active=True
+                ).first()
+
+                if thread:
+                    return thread, False
+                else:
+                    thread = cls.objects.create(
+                        applicant=applicant,
+                        hr_user=hr_user,
+                        is_active=True
+                    )
+                    return thread, True
+
+        except Exception as e:
+            print(f"Error creating chat: {e}")
             return None, False
 
-        return thread, created
+
     class Meta:
         verbose_name = "Чат"
         verbose_name_plural = "Чаты"
@@ -408,16 +479,60 @@ class IdealCandidateProfile(models.Model):
     def __str__(self):
         return f"{self.title} - {self.hr_user.username}"
 
+class SkillTag(models.Model):
+    """Теги навыков для категорий"""
+    name = models.CharField(max_length=100, verbose_name="Название тега")
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="Категория")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Тег навыка"
+        verbose_name_plural = "Теги навыков"
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.category.name})"
+
+class EducationLevel(models.Model):
+    """Уровни образования"""
+    name = models.CharField(max_length=100, verbose_name="Название уровня")
+    order = models.IntegerField(default=0, verbose_name="Порядок")
+
+    class Meta:
+        verbose_name = "Уровень образования"
+        verbose_name_plural = "Уровни образования"
+        ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+
 
 class IdealVacancyProfile(models.Model):
     """Идеальная вакансия от соискателя"""
     applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, verbose_name="Соискатель")
     title = models.CharField(max_length=200, verbose_name="Название профиля")
+
+    # Новые поля для выбора из списка
+    main_category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
+                                      verbose_name="Основная категория", related_name='main_vacancy_profiles')
+    subcategory = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
+                                    verbose_name="Подкатегория", related_name='sub_vacancy_profiles')
+
     ideal_position = models.CharField(max_length=200, verbose_name="Идеальная должность")
     desired_skills = models.TextField(verbose_name="Желаемые навыки")
+    selected_skill_tags = models.ManyToManyField(SkillTag, blank=True, verbose_name="Выбранные теги навыков")
+
     experience_level = models.CharField(max_length=100, verbose_name="Уровень опыта")
+    education_level = models.ForeignKey(EducationLevel, on_delete=models.SET_NULL, null=True, blank=True,
+                                        verbose_name="Уровень образования")
+
     desired_salary = models.CharField(max_length=100, blank=True, verbose_name="Желаемая зарплата")
     location_preferences = models.CharField(max_length=200, blank=True, verbose_name="Предпочтения по локации")
+
+    employment_types = models.CharField(max_length=200, blank=True, verbose_name="Тип занятости")
+    work_schedule = models.CharField(max_length=200, blank=True, verbose_name="График работы")
+
     min_match_percentage = models.IntegerField(default=70, verbose_name="Минимальный % совпадения")
     max_vacancies = models.IntegerField(default=10, verbose_name="Максимум вакансий")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
@@ -429,6 +544,14 @@ class IdealVacancyProfile(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.applicant}"
+
+    def get_selected_skills_list(self):
+        """Возвращает список выбранных навыков"""
+        if self.selected_skill_tags.exists():
+            return [tag.name for tag in self.selected_skill_tags.all()]
+        elif self.desired_skills:
+            return [skill.strip() for skill in self.desired_skills.split(',')]
+        return []
 
 
 class AISearchMatch(models.Model):
@@ -456,3 +579,10 @@ class AISearchMatch(models.Model):
             return f"Кандидат {self.matched_applicant} - {self.match_percentage}%"
         else:
             return f"Вакансия {self.matched_vacancy} - {self.match_percentage}%"
+
+
+# Добавить в models.py после существующих моделей
+
+
+
+
