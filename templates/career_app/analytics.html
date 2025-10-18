@@ -5,14 +5,7 @@
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="bi bi-graph-up"></i> Аналитика системы</h1>
-        <div class="btn-group">
-            <button class="btn btn-outline-primary" onclick="exportToExcel()">
-                <i class="bi bi-file-earmark-excel"></i> Excel
-            </button>
-            <button class="btn btn-outline-success" onclick="generatePDF()">
-                <i class="bi bi-file-earmark-pdf"></i> PDF
-            </button>
-        </div>
+
     </div>
 
     <!-- Фильтры -->
@@ -207,52 +200,10 @@
         </div>
     </div>
 
-    <!-- Графики и визуализации -->
-    <div class="row">
-        <!-- Статистика по времени -->
-        <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5><i class="bi bi-calendar-week"></i> Динамика за период</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="timelineChart" height="100"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Топ категорий -->
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5><i class="bi bi-tags"></i> Топ категорий</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="categoriesChart" height="250"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Статистика по статусам -->
     <div class="row">
-        <div class="col-lg-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5><i class="bi bi-list-check"></i> Статусы откликов</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="statusChart" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
+
             <div class="card mb-4">
                 <div class="card-header">
                     <h5><i class="bi bi-speedometer2"></i> Эффективность платформы</h5>
@@ -292,7 +243,6 @@
                     </div>
                 </div>
             </div>
-        </div>
     </div>
 
     <!-- Детальная аналитика -->
@@ -540,7 +490,6 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Инициализация графиков
 document.addEventListener('DOMContentLoaded', function() {
     // Timeline Chart
     const timelineCtx = document.getElementById('timelineChart').getContext('2d');
@@ -551,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [
                 {
                     label: 'Вакансии',
-                    data: {{ timeline_vacancies|safe }},
+                    data: {{ timeline_vacancies }},
                     borderColor: 'rgb(54, 162, 235)',
                     backgroundColor: 'rgba(54, 162, 235, 0.1)',
                     borderWidth: 2,
@@ -560,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     label: 'Отклики',
-                    data: {{ timeline_applications|safe }},
+                    data: {{ timeline_applications }},
                     borderColor: 'rgb(75, 192, 192)',
                     backgroundColor: 'rgba(75, 192, 192, 0.1)',
                     borderWidth: 2,
@@ -599,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: {{ category_labels|safe }},
             datasets: [{
-                data: {{ category_data|safe }},
+                data: {{ category_data }},
                 backgroundColor: [
                     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
                     '#9966FF', '#FF9F40', '#8B5CF6', '#10B981'
@@ -624,54 +573,51 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Status Chart
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const statusChart = new Chart(statusCtx, {
-        type: 'bar',
-        data: {
-            labels: [
-                {% for stat in application_status_stats %}
-                '{{ stat.status }}'{% if not forloop.last %},{% endif %}
-                {% endfor %}
-            ],
-            datasets: [{
-                label: 'Количество откликов',
-                data: [
-                    {% for stat in application_status_stats %}
-                    {{ stat.count }}{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ],
-                backgroundColor: [
-                    '#36A2EB', '#4BC0C0', '#FFCE56', '#FF6384', '#9966FF'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        const statusChart = new Chart(statusCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ status_labels|safe }},
+                datasets: [{
+                    label: 'Количество откликов',
+                    data: {{ status_data }},
+                    backgroundColor: [
+                        '#36A2EB', '#4BC0C0', '#FFCE56', '#FF6384', '#9966FF'
+                    ],
+                    borderWidth: 1
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 });
 
+// Функции экспорта - ИСПРАВЛЕННЫЕ
 function exportToExcel() {
-    alert('Функция экспорта в Excel будет реализована в следующем обновлении');
+    const filters = new URLSearchParams(window.location.search);
+    window.location.href = `/analytics/export/excel/?${filters.toString()}`;
 }
 
 function generatePDF() {
-    alert('Функция генерации PDF будет реализована в следующем обновлении');
+    const filters = new URLSearchParams(window.location.search);
+    window.location.href = `/analytics/export/pdf/?${filters.toString()}`;
 }
 </script>
 <style>

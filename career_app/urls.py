@@ -81,4 +81,8 @@ urlpatterns = [
     path('ajax/get-subcategories/', views.get_subcategories, name='get_subcategories'),
     path('ajax/get-skills/', views.get_skills, name='get_skills'),
     path('get-subcategories/', views.get_subcategories, name='get_subcategories'),
+
+    path('analytics/', views.analytics, name='analytics'),
+    path('analytics/export/<str:format_type>/', views.export_analytics, name='export_analytics'),
+
 ]
