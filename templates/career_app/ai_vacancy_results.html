@@ -61,6 +61,14 @@
             Создать новый профиль поиска
         </a>
     </div>
+
     {% endif %}
+</div>
+<div class="alert alert-info">
+    <h4>Результаты поиска для: "{{ profile.title }}"</h4>
+    <p>Минимальный порог: {{ profile.min_match_percentage }}%</p>
+    <a href="{% url 'run_ai_search' profile.id %}" class="btn btn-sm btn-warning">
+        🔄 Обновить результаты
+    </a>
 </div>
 {% endblock %}

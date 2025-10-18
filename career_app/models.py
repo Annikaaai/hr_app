@@ -101,7 +101,7 @@ class Vacancy(models.Model):
         ('rejected', 'Отклонена'),
         ('closed', 'Закрыта'),
     ]
-
+    views = models.IntegerField(default=0, verbose_name="Просмотры")
     title = models.CharField(max_length=200, verbose_name="Должность")
     company = models.ForeignKey(Company, on_delete=models.CASCADE, verbose_name="Компания")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Категория")
@@ -176,17 +176,46 @@ class Internship(models.Model):
 
 
 class Applicant(models.Model):
+    EXPERIENCE_LEVELS = [
+        ('no_experience', 'Нет опыта'),
+        ('intern', 'Стажер'),
+        ('junior', 'Junior (Начинающий)'),
+        ('middle', 'Middle (Опытный)'),
+        ('senior', 'Senior (Старший)'),
+        ('lead', 'Lead (Руководитель)'),
+    ]
+
+    EDUCATION_LEVELS = [
+        ('secondary', 'Среднее'),
+        ('secondary_professional', 'Среднее профессиональное'),
+        ('high', 'Высшее образование'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     first_name = models.CharField(max_length=100, verbose_name="Имя")
     last_name = models.CharField(max_length=100, verbose_name="Фамилия")
     email = models.EmailField(verbose_name="Email")
     phone = models.CharField(max_length=20, verbose_name="Телефон")
 
-    # Новые поля для резюме
+    # Обновленные поля для резюме
     position = models.CharField(max_length=200, blank=True, verbose_name="Желаемая должность")
+    experience_level = models.CharField(
+        max_length=50,
+        choices=EXPERIENCE_LEVELS,
+        blank=True,
+        verbose_name="Уровень опыта"
+    )
+    education_level = models.CharField(
+        max_length=50,
+        choices=EDUCATION_LEVELS,
+        blank=True,
+        verbose_name="Уровень образования"
+    )
+    skills = models.TextField(blank=True, verbose_name="Навыки")
+
+    # Старые поля оставляем для обратной совместимости
     experience = models.TextField(blank=True, verbose_name="Опыт работы")
     education = models.TextField(blank=True, verbose_name="Образование")
-    skills = models.TextField(blank=True, verbose_name="Навыки")
     about = models.TextField(blank=True, verbose_name="О себе")
 
     resume_file = models.FileField(upload_to='resumes/', null=True, blank=True, verbose_name="Файл резюме")
@@ -201,16 +230,47 @@ class Applicant(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    def get_experience_display(self):
+        return dict(self.EXPERIENCE_LEVELS).get(self.experience_level, '')
+
+    def get_education_display(self):
+        return dict(self.EDUCATION_LEVELS).get(self.education_level, '')
+
     def get_full_resume_text(self):
-        """Возвращает полный текст резюме для поиска"""
-        return f"""
-        Должность: {self.position}
-        Опыт работы: {self.experience}
-        Образование: {self.education}
-        Навыки: {self.skills}
-        О себе: {self.about}
-        {self.resume_text}
-        """
+        """Возвращает полный текст резюме для поиска с проверкой на пустоту"""
+        parts = []
+
+        # Добавляем только заполненные поля
+        if self.position:
+            parts.append(f"Должность: {self.position}")
+
+        if self.experience_level:
+            parts.append(f"Уровень опыта: {self.get_experience_display()}")
+
+        if self.education_level:
+            parts.append(f"Уровень образования: {self.get_education_display()}")
+
+        if self.skills and self.skills.strip():
+            parts.append(f"Навыки: {self.skills}")
+
+        if self.resume_text and self.resume_text.strip():
+            parts.append(f"Резюме: {self.resume_text}")
+
+        # Добавляем старые поля для обратной совместимости
+        if self.experience and self.experience.strip():
+            parts.append(f"Опыт: {self.experience}")
+
+        if self.education and self.education.strip():
+            parts.append(f"Образование: {self.education}")
+
+        if self.about and self.about.strip():
+            parts.append(f"О себе: {self.about}")
+
+        # Если все поля пустые, возвращаем хотя бы имя
+        if not parts:
+            parts.append(f"Соискатель: {self.first_name} {self.last_name}")
+
+        return "\n".join(parts)
 
 
 class Application(models.Model):
@@ -519,19 +579,23 @@ class IdealVacancyProfile(models.Model):
     subcategory = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
                                     verbose_name="Подкатегория", related_name='sub_vacancy_profiles')
 
-    ideal_position = models.CharField(max_length=200, verbose_name="Идеальная должность")
-    desired_skills = models.TextField(verbose_name="Желаемые навыки")
+    # Убрано поле ideal_position
+    desired_skills = models.TextField(verbose_name="Желаемые навыки", blank=True)
     selected_skill_tags = models.ManyToManyField(SkillTag, blank=True, verbose_name="Выбранные теги навыков")
 
     experience_level = models.CharField(max_length=100, verbose_name="Уровень опыта")
-    education_level = models.ForeignKey(EducationLevel, on_delete=models.SET_NULL, null=True, blank=True,
-                                        verbose_name="Уровень образования")
+    education_level = models.CharField(
+        max_length=50,
+        choices=Applicant.EDUCATION_LEVELS,
+        default='high',
+        verbose_name="Уровень образования"
+    )
 
     desired_salary = models.CharField(max_length=100, blank=True, verbose_name="Желаемая зарплата")
     location_preferences = models.CharField(max_length=200, blank=True, verbose_name="Предпочтения по локации")
 
-    employment_types = models.CharField(max_length=200, blank=True, verbose_name="Тип занятости")
-    work_schedule = models.CharField(max_length=200, blank=True, verbose_name="График работы")
+    # Новое поле для стека технологий
+    tech_stack = models.CharField(max_length=500, blank=True, verbose_name="Стек технологий")
 
     min_match_percentage = models.IntegerField(default=70, verbose_name="Минимальный % совпадения")
     max_vacancies = models.IntegerField(default=10, verbose_name="Максимум вакансий")
@@ -553,6 +617,9 @@ class IdealVacancyProfile(models.Model):
             return [skill.strip() for skill in self.desired_skills.split(',')]
         return []
 
+    def get_education_display(self):
+        """Возвращает отображаемое значение уровня образования"""
+        return dict(Applicant.EDUCATION_LEVELS).get(self.education_level, '')
 
 class AISearchMatch(models.Model):
     """Результаты сопоставления ИИ"""

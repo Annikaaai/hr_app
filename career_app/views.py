@@ -13,27 +13,30 @@ from django.views.decorators.http import require_GET
 from django.utils import timezone
 from datetime import timedelta
 import random
+from django.db.models import Q, Count, Avg, Case, When, FloatField, F
 from django.db.models.functions import TruncDay, TruncMonth
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from .models import Category
 
-
-
-@require_GET
 def get_subcategories(request):
-    """AJAX view для получения подкатегорий"""
     main_category_id = request.GET.get('main_category_id')
-
     if main_category_id:
-        subcategories = Category.objects.filter(parent_id=main_category_id)
-        data = {
-            'subcategories': [
-                {'id': subcat.id, 'name': subcat.name}
-                for subcat in subcategories
-            ]
-        }
-    else:
-        data = {'subcategories': []}
-
-    return JsonResponse(data)
+        try:
+            main_category = get_object_or_404(Category, id=main_category_id)
+            subcategories = Category.objects.filter(parent=main_category).order_by('name')
+            data = {
+                'subcategories': [
+                    {'id': cat.id, 'name': cat.name}
+                    for cat in subcategories
+                ]
+            }
+            return JsonResponse(data)
+        except:
+            return JsonResponse({'subcategories': []})
+    return JsonResponse({'subcategories': []})
 
 
 @require_GET
@@ -751,7 +754,7 @@ def moderate_internship(request, pk, action):
 @login_required
 @user_passes_test(is_admin)
 def analytics(request):
-    """Расширенная аналитика для администратора"""
+    """Расширенная аналитика для администратора с реальными данными"""
     # Параметры фильтрации
     period = request.GET.get('period', '30')
     category_id = request.GET.get('category', '')
@@ -761,31 +764,41 @@ def analytics(request):
     # Базовые queryset с фильтрами
     vacancy_filters = Q()
     application_filters = Q()
+    internship_filters = Q()
+    internship_response_filters = Q()
 
+    # Период фильтрации
     if period != 'all':
         days = int(period)
         start_date = timezone.now() - timedelta(days=days)
         vacancy_filters &= Q(created_at__gte=start_date)
         application_filters &= Q(applied_at__gte=start_date)
+        internship_filters &= Q(created_at__gte=start_date)
+        internship_response_filters &= Q(applied_at__gte=start_date)
 
     if category_id:
         vacancy_filters &= Q(category_id=category_id)
+        internship_filters &= Q(category_id=category_id)
 
     if company_id:
         vacancy_filters &= Q(company_id=company_id)
 
     if status:
         vacancy_filters &= Q(status=status)
+        internship_filters &= Q(status=status)
 
     # Основная статистика
     vacancies = Vacancy.objects.filter(vacancy_filters)
     applications = Application.objects.filter(application_filters)
+    internships = Internship.objects.filter(internship_filters)
+    internship_responses = InternshipResponse.objects.filter(internship_response_filters)
 
     # Ключевые метрики
     total_vacancies = vacancies.count()
     total_applications = applications.count()
     total_companies = Company.objects.filter(is_approved=True).count()
-    total_internships = Internship.objects.count()
+    total_internships = internships.count()
+    total_internship_responses = internship_responses.count()
 
     # Активные метрики
     active_vacancies = vacancies.filter(status='published').count()
@@ -793,103 +806,241 @@ def analytics(request):
         is_approved=True,
         vacancy__status='published'
     ).distinct().count()
-    active_internships = Internship.objects.filter(status='published').count()
+    active_internships = internships.filter(status='published').count()
 
     # Новые отклики за последние 7 дней
     new_applications = Application.objects.filter(
         applied_at__gte=timezone.now() - timedelta(days=7)
     ).count()
 
-    # Конверсия (можно добавить просмотры в модель Vacancy)
-    conversion_rate = round((total_applications / max(total_vacancies, 1)) * 100, 1)
+    # Конверсия (отклики на вакансию)
+    conversion_rate = 0
+    if total_vacancies > 0:
+        conversion_rate = round((total_applications / total_vacancies) * 100, 1)
 
-    # Статистика по компаниям
+    # Статистика по компаниям (исправленная версия)
     company_stats = Vacancy.objects.filter(vacancy_filters).values(
-        'company__name'
+        'company__name', 'company_id'
     ).annotate(
         vacancy_count=Count('id'),
         application_count=Count('application'),
-        conversion_rate=Count('application') * 100.0 / Count('id')
-    ).order_by('-application_count')[:10]
-
-    # Добавляем эффективность
-    for company in company_stats:
-        company['efficiency'] = min(company['conversion_rate'] * 10, 100)
-
-    # Популярные вакансии
-    popular_vacancies = Vacancy.objects.filter(vacancy_filters).annotate(
-        application_count=Count('application'),
-        view_count=Count('views', distinct=True)  # Добавить поле views в модель
+        published_vacancies=Count('id', filter=Q(status='published')),
+        avg_salary=Avg('salary_amount')
     ).annotate(
-        ctr=Case(
-            When(view_count=0, then=0),
-            default=Count('application') * 100.0 / F('view_count'),
+        conversion_rate=Case(
+            When(vacancy_count=0, then=0.0),
+            default=Cast(Count('application'), FloatField()) * 100.0 / Cast(Count('id'), FloatField()),
             output_field=FloatField()
         )
     ).order_by('-application_count')[:10]
 
-    # Статистика по времени
+    # Рассчитываем эффективность отдельно в Python
+    for company in company_stats:
+        if company['vacancy_count'] > 0 and company['application_count'] > 0:
+            published_ratio = company['published_vacancies'] / company['vacancy_count']
+            conversion_ratio = company['application_count'] / company['vacancy_count']
+            efficiency = (conversion_ratio * published_ratio) * 100
+            company['efficiency'] = min(efficiency, 100)
+        else:
+            company['efficiency'] = 0
+
+    # Популярные вакансии
+    popular_vacancies = Vacancy.objects.filter(vacancy_filters).annotate(
+        application_count=Count('application'),
+        view_count=Count('views', distinct=True)
+    ).annotate(
+        ctr=Case(
+            When(view_count=0, then=0.0),
+            default=Cast(Count('application'), FloatField()) * 100.0 / Cast(F('view_count'), FloatField()),
+            output_field=FloatField()
+        )
+    ).order_by('-application_count')[:10]
+
+    # Статистика по времени (реальные данные)
+    timeline_labels = []
+    timeline_vacancies = []
+    timeline_applications = []
+
     if period != 'all':
-        days = int(period)
-        dates = [timezone.now() - timedelta(days=x) for x in range(days, -1, -1)]
-        timeline_labels = [date.strftime('%d.%m') for date in dates[::-1]]
+        days = min(int(period), 90)  # Ограничим до 90 дней для читаемости
 
-        timeline_vacancies = []
-        timeline_applications = []
+        if days <= 30:
+            # Дневная статистика
+            for i in range(days, -1, -1):
+                day_start = timezone.now() - timedelta(days=i + 1)
+                day_end = timezone.now() - timedelta(days=i)
 
-        for i in range(days, -1, -1):
-            day_start = timezone.now() - timedelta(days=i + 1)
-            day_end = timezone.now() - timedelta(days=i)
+                vac_count = Vacancy.objects.filter(
+                    created_at__range=(day_start, day_end)
+                ).count()
+                app_count = Application.objects.filter(
+                    applied_at__range=(day_start, day_end)
+                ).count()
+
+                timeline_vacancies.append(vac_count)
+                timeline_applications.append(app_count)
+                timeline_labels.append(day_end.strftime('%d.%m'))
+        else:
+            # Недельная статистика для больших периодов
+            weeks = days // 7
+            for i in range(weeks, -1, -1):
+                week_start = timezone.now() - timedelta(weeks=i + 1)
+                week_end = timezone.now() - timedelta(weeks=i)
+
+                vac_count = Vacancy.objects.filter(
+                    created_at__range=(week_start, week_end)
+                ).count()
+                app_count = Application.objects.filter(
+                    applied_at__range=(week_start, week_end)
+                ).count()
+
+                timeline_vacancies.append(vac_count)
+                timeline_applications.append(app_count)
+                timeline_labels.append(f"{week_start.strftime('%d.%m')}-{week_end.strftime('%d.%m')}")
+    else:
+        # Для "все время" - группировка по месяцам
+        months = 12
+        for i in range(months, -1, -1):
+            month_start = timezone.now() - timedelta(days=30 * (i + 1))
+            month_end = timezone.now() - timedelta(days=30 * i)
 
             vac_count = Vacancy.objects.filter(
-                created_at__range=(day_start, day_end)
+                created_at__range=(month_start, month_end)
             ).count()
             app_count = Application.objects.filter(
-                applied_at__range=(day_start, day_end)
+                applied_at__range=(month_start, month_end)
             ).count()
 
             timeline_vacancies.append(vac_count)
             timeline_applications.append(app_count)
-    else:
-        # Для "все время" - группировка по месяцам
-        pass
+            timeline_labels.append(month_end.strftime('%b %Y'))
 
     # Статистика по категориям
     category_stats = Vacancy.objects.filter(vacancy_filters).values(
         'category__name'
     ).annotate(
-        count=Count('id')
+        count=Count('id'),
+        avg_salary=Avg('salary_amount'),
+        application_count=Count('application')
+    ).annotate(
+        conversion_rate=Case(
+            When(count=0, then=0.0),
+            default=Cast(Count('application'), FloatField()) * 100.0 / Cast(Count('id'), FloatField()),
+            output_field=FloatField()
+        )
     ).order_by('-count')[:8]
 
     category_labels = [item['category__name'] or 'Без категории' for item in category_stats]
     category_data = [item['count'] for item in category_stats]
 
-    # Географическая статистика (если добавить location в модели)
-    location_stats = Vacancy.objects.filter(vacancy_filters).values(
-        'location'
-    ).annotate(
-        vacancy_count=Count('id'),
-        avg_salary=Avg('salary_amount')  # Добавить числовое поле salary_amount
-    ).order_by('-vacancy_count')[:10]
+    # Географическая статистика (если есть location в моделях)
+    location_stats = []
+    if Vacancy.objects.filter(location__isnull=False).exists():
+        location_data = Vacancy.objects.filter(
+            vacancy_filters,
+            location__isnull=False
+        ).values('location').annotate(
+            vacancy_count=Count('id'),
+            avg_salary=Avg('salary_amount'),
+            application_count=Count('application')
+        ).annotate(
+            conversion_rate=Case(
+                When(vacancy_count=0, then=0.0),
+                default=Cast(Count('application'), FloatField()) * 100.0 / Cast(Count('id'), FloatField()),
+                output_field=FloatField()
+            )
+        ).order_by('-vacancy_count')[:10]
 
-    # Расчет доли рынка
-    total_with_location = sum(item['vacancy_count'] for item in location_stats)
-    for location in location_stats:
-        location['market_share'] = round(
-            (location['vacancy_count'] / max(total_with_location, 1)) * 100, 1
-        )
-        location['trend'] = random.randint(-10, 10)  # Заменить на реальные данные
+        total_location_vacancies = sum(item['vacancy_count'] for item in location_data)
+        for location in location_data:
+            if total_location_vacancies > 0:
+                market_share = round((location['vacancy_count'] / total_location_vacancies) * 100, 1)
+
+                # Расчет тренда (изменение за последний период)
+                if period != 'all':
+                    days = int(period)
+                    current_period_start = timezone.now() - timedelta(days=days)
+                    previous_period_start = timezone.now() - timedelta(days=days * 2)
+                    previous_period_end = current_period_start
+
+                    current_count = Vacancy.objects.filter(
+                        location=location['location'],
+                        created_at__gte=current_period_start
+                    ).count()
+
+                    previous_count = Vacancy.objects.filter(
+                        location=location['location'],
+                        created_at__range=(previous_period_start, previous_period_end)
+                    ).count()
+
+                    trend = calculate_growth(current_count, previous_count)
+                else:
+                    trend = 0
+
+                location_stats.append({
+                    'location': location['location'],
+                    'vacancy_count': location['vacancy_count'],
+                    'avg_salary': location['avg_salary'] or 0,
+                    'market_share': market_share,
+                    'trend': trend,
+                    'conversion_rate': location['conversion_rate']
+                })
 
     # Статистика по стажировкам
-    internship_applications = InternshipResponse.objects.count()
-    internship_conversion = round(
-        (internship_applications / max(total_internships, 1)) * 100, 1
-    )
+    internship_applications = internship_responses.count()
+    internship_conversion = 0
+    if total_internships > 0:
+        internship_conversion = round((internship_applications / total_internships) * 100, 1)
 
-    # Рост (можно добавить сравнение с предыдущим периодом)
-    vacancy_growth = random.randint(5, 25)
-    application_growth = random.randint(10, 30)
-    company_growth = random.randint(2, 15)
+    # Рост (реальные данные)
+    if period != 'all':
+        days = int(period)
+        previous_period_start = timezone.now() - timedelta(days=days * 2)
+        previous_period_end = timezone.now() - timedelta(days=days)
+
+        previous_period_vacancies = Vacancy.objects.filter(
+            created_at__range=(previous_period_start, previous_period_end)
+        ).count()
+
+        previous_period_applications = Application.objects.filter(
+            applied_at__range=(previous_period_start, previous_period_end)
+        ).count()
+
+        previous_period_companies = Company.objects.filter(
+            is_approved=True,
+            created_at__range=(previous_period_start, previous_period_end)
+        ).count()
+    else:
+        previous_period_vacancies = 0
+        previous_period_applications = 0
+        previous_period_companies = 0
+
+    # Расчет роста
+    vacancy_growth = calculate_growth(total_vacancies, previous_period_vacancies)
+    application_growth = calculate_growth(total_applications, previous_period_applications)
+    company_growth = calculate_growth(total_companies, previous_period_companies)
+
+    # Дополнительная аналитика
+    # Среднее время отклика
+    avg_response_time = None
+    if applications.exists():
+        try:
+            # Более простой подход: среднее время между созданием вакансии и первым откликом
+            response_times = []
+            for application in applications.select_related('vacancy')[:100]:  # Ограничим для производительности
+                if application.vacancy.created_at:
+                    response_time = (application.applied_at - application.vacancy.created_at).total_seconds() / 3600
+                    response_times.append(response_time)
+
+            if response_times:
+                avg_response_time = round(sum(response_times) / len(response_times), 1)
+        except:
+            avg_response_time = None
+
+    # Статистика по статусам заявок
+    application_status_stats = applications.values('status').annotate(
+        count=Count('id')
+    ).order_by('-count')
 
     context = {
         # Основные метрики
@@ -913,6 +1064,7 @@ def analytics(request):
         # Детальная статистика
         'company_stats': company_stats,
         'popular_vacancies': popular_vacancies,
+        'application_status_stats': application_status_stats,
 
         # Визуализации
         'timeline_labels': timeline_labels,
@@ -925,6 +1077,7 @@ def analytics(request):
         'location_stats': location_stats,
         'internship_applications': internship_applications,
         'internship_conversion': internship_conversion,
+        'avg_response_time': avg_response_time,
 
         # Фильтры
         'period': period,
@@ -936,6 +1089,14 @@ def analytics(request):
     }
 
     return render(request, 'career_app/analytics.html', context)
+
+
+def calculate_growth(current, previous):
+    """Вспомогательная функция для расчета роста"""
+    if previous == 0:
+        return 100 if current > 0 else 0
+    growth = ((current - previous) / previous) * 100
+    return round(growth, 1)
 
 @login_required
 def create_applicant_profile(request):
@@ -1377,59 +1538,71 @@ def create_ideal_candidate_profile(request):
             matches = AIMatcher.find_candidates_for_hr(profile)
 
             messages.success(request, f'Найдено {len(matches)} подходящих кандидатов!')
-            return redirect('ai_search_results', profile_id=profile.id)
+            return redirect('ai_candidate_results', profile_id=profile.id)
     else:
         form = IdealCandidateProfileForm()
 
-    context = {'form': form}
+    context = {
+        'form': form,
+        'editing': False,
+    }
     return render(request, 'career_app/ideal_candidate_profile_form.html', context)
 
 
 @login_required
-def create_ideal_vacancy_profile(request, profile_id=None):
-    """Создание или редактирование идеального профиля вакансии для соискателя"""
+def create_ideal_vacancy_profile(request):
+    """Создание нового идеального профиля вакансии для соискателя"""
     try:
         applicant = request.user.applicant
     except Applicant.DoesNotExist:
         messages.error(request, 'Пожалуйста, заполните ваш профиль соискателя.')
         return redirect('create_applicant_profile')
 
-    # Если передан profile_id - редактируем существующий профиль
-    if profile_id:
-        profile = get_object_or_404(IdealVacancyProfile, id=profile_id, applicant=applicant)
+    if request.method == 'POST':
+        form = IdealVacancyProfileForm(request.POST)
+        if form.is_valid():
+            profile = form.save(commit=False)
+            profile.applicant = applicant
+            profile.save()
+            form.save_m2m()
+
+            messages.success(request, 'Профиль создан! Теперь вы можете запустить поиск.')
+            return redirect('ai_search_dashboard')
     else:
-        profile = None
+        form = IdealVacancyProfileForm()
+
+    context = {
+        'form': form,
+        'editing': False,
+    }
+    return render(request, 'career_app/ideal_vacancy_profile_form.html', context)
+
+
+@login_required
+def edit_ideal_vacancy_profile(request, profile_id):
+    """Редактирование существующего идеального профиля вакансии"""
+    try:
+        applicant = request.user.applicant
+        profile = IdealVacancyProfile.objects.get(id=profile_id, applicant=applicant)
+    except Applicant.DoesNotExist:
+        messages.error(request, 'Пожалуйста, заполните ваш профиль соискателя.')
+        return redirect('create_applicant_profile')
+    except IdealVacancyProfile.DoesNotExist:
+        messages.error(request, 'Профиль не найден или у вас нет прав для его редактирования.')
+        return redirect('ai_search_dashboard')
 
     if request.method == 'POST':
         form = IdealVacancyProfileForm(request.POST, instance=profile)
         if form.is_valid():
-            profile = form.save(commit=False)
-            profile.applicant = applicant
-
-            # Обрабатываем множественные выборы
-            employment_types = request.POST.getlist('employment_types')
-            work_schedule = request.POST.getlist('work_schedule')
-
-            profile.employment_types = ', '.join(employment_types)
-            profile.work_schedule = ', '.join(work_schedule)
-
-            profile.save()
-
-            # Сохраняем выбранные теги
-            form.save_m2m()
-
-            # Запускаем поиск вакансий
-            matches = AIMatcher.find_vacancies_for_applicant(profile)
-
-            action = "обновлен" if profile_id else "создан"
-            messages.success(request, f'Профиль {action}! Найдено {len(matches)} подходящих вакансий!')
-            return redirect('ai_search_results', profile_id=profile.id)
+            form.save()
+            messages.success(request, 'Профиль успешно обновлен!')
+            return redirect('ai_search_dashboard')
     else:
         form = IdealVacancyProfileForm(instance=profile)
 
     context = {
         'form': form,
-        'editing': profile_id is not None,
+        'editing': True,
         'profile': profile,
     }
     return render(request, 'career_app/ideal_vacancy_profile_form.html', context)
@@ -1440,25 +1613,47 @@ def ai_search_results(request, profile_id):
     """Результаты ИИ-поиска"""
     user_profile = request.user.userprofile
 
-    if user_profile.role == 'hr':
-        profile = get_object_or_404(IdealCandidateProfile, id=profile_id, hr_user=request.user)
-        matches = AISearchMatch.objects.filter(
-            ideal_candidate_profile=profile
-        ).select_related('matched_applicant').order_by('-match_percentage')
-        template = 'career_app/ai_candidate_results.html'
-    else:
-        profile = get_object_or_404(IdealVacancyProfile, id=profile_id, applicant__user=request.user)
-        matches = AISearchMatch.objects.filter(
-            ideal_vacancy_profile=profile
-        ).select_related('matched_vacancy', 'matched_vacancy__company').order_by('-match_percentage')
-        template = 'career_app/ai_vacancy_results.html'
+    try:
+        if user_profile.role == 'hr':
+            profile = IdealCandidateProfile.objects.get(id=profile_id, hr_user=request.user)
+            matches = AISearchMatch.objects.filter(
+                ideal_candidate_profile=profile
+            ).select_related('matched_applicant').order_by('-match_percentage')
+            template = 'career_app/ai_candidate_results.html'
+        else:
+            profile = IdealVacancyProfile.objects.get(id=profile_id, applicant__user=request.user)
+            matches = AISearchMatch.objects.filter(
+                ideal_vacancy_profile=profile
+            ).select_related('matched_vacancy', 'matched_vacancy__company').order_by('-match_percentage')
+            template = 'career_app/ai_vacancy_results.html'
 
-    context = {
-        'profile': profile,
-        'matches': matches,
-    }
-    return render(request, template, context)
+        # ДИАГНОСТИКА: выводим отладочную информацию
+        print(f"=== ДИАГНОСТИКА РЕЗУЛЬТАТОВ ===")
+        print(f"Профиль: {profile.title}")
+        print(f"Найдено совпадений в базе: {matches.count()}")
+        for match in matches:
+            if hasattr(match, 'matched_vacancy') and match.matched_vacancy:
+                print(f"- Вакансия: {match.matched_vacancy.title} - {match.match_percentage}%")
+            elif hasattr(match, 'matched_applicant') and match.matched_applicant:
+                print(
+                    f"- Кандидат: {match.matched_applicant.first_name} {match.matched_applicant.last_name} - {match.match_percentage}%")
 
+        context = {
+            'profile': profile,
+            'matches': matches,
+            'debug_info': {
+                'matches_count': matches.count(),
+                'profile_title': profile.title
+            }
+        }
+        return render(request, template, context)
+
+    except IdealCandidateProfile.DoesNotExist:
+        messages.error(request, 'Профиль кандидата не найден.')
+        return redirect('ai_search_dashboard')
+    except IdealVacancyProfile.DoesNotExist:
+        messages.error(request, 'Профиль вакансии не найден.')
+        return redirect('ai_search_dashboard')
 
 @login_required
 @user_passes_test(is_hr)
@@ -1644,6 +1839,12 @@ def ai_search_dashboard(request):
         recent_matches = AISearchMatch.objects.filter(
             ideal_candidate_profile__hr_user=request.user
         ).select_related('matched_applicant')[:5]
+        total_applicants = Applicant.objects.filter(is_published=True).count()
+        context = {
+            'profiles': profiles,
+            'recent_matches': recent_matches,
+            'total_applicants': total_applicants,
+        }
     elif user_profile.role == 'applicant':
         try:
             applicant = request.user.applicant
@@ -1651,15 +1852,166 @@ def ai_search_dashboard(request):
             recent_matches = AISearchMatch.objects.filter(
                 ideal_vacancy_profile__applicant=applicant
             ).select_related('matched_vacancy', 'matched_vacancy__company')[:5]
+            total_vacancies = Vacancy.objects.filter(status='published').count()
+            context = {
+                'profiles': profiles,
+                'recent_matches': recent_matches,
+                'total_vacancies': total_vacancies,
+            }
         except Applicant.DoesNotExist:
             profiles = []
             recent_matches = []
+            context = {
+                'profiles': profiles,
+                'recent_matches': recent_matches,
+            }
     else:
         profiles = []
         recent_matches = []
+        context = {
+            'profiles': profiles,
+            'recent_matches': recent_matches,
+        }
+
+    return render(request, 'career_app/ai_search_dashboard.html', context)
+
+def applicant_resume(request):
+    try:
+        applicant = Applicant.objects.get(user=request.user)
+    except Applicant.DoesNotExist:
+        applicant = None
+
+    if request.method == 'POST':
+        form = ApplicantResumeForm(request.POST, request.FILES, instance=applicant, user=request.user)
+        if form.is_valid():
+            applicant = form.save(commit=False)
+            applicant.user = request.user
+            applicant.save()
+            messages.success(request, 'Резюме успешно сохранено!')
+            return redirect('applicant_dashboard')
+    else:
+        form = ApplicantResumeForm(instance=applicant, user=request.user)
+
+    return render(request, 'applicant_rezume_form.html', {'form': form})
+
+
+from django.http import JsonResponse
+from .ai_matcher import AIMatcher
+from .models import IdealVacancyProfile, Vacancy
+
+
+@login_required
+def force_ai_search(request, profile_id):
+    """Принудительный запуск ИИ-поиска"""
+    try:
+        profile = IdealVacancyProfile.objects.get(id=profile_id, applicant__user=request.user)
+        from .ai_matcher import AIMatcher
+
+        # Запускаем поиск
+        results = AIMatcher.find_vacancies_for_applicant(profile)
+
+        # Проверяем сохраненные результаты
+        saved_matches = AISearchMatch.objects.filter(ideal_vacancy_profile=profile)
+
+        messages.success(request,
+                         f'Поиск выполнен! Найдено {len(results)} вакансий, сохранено {saved_matches.count()} совпадений.')
+        return redirect('ai_search_results', profile_id=profile_id)
+
+    except Exception as e:
+        messages.error(request, f'Ошибка: {str(e)}')
+        return redirect('ai_search_dashboard')
+
+
+@login_required
+def run_ai_search(request, profile_id):
+    """Запуск ИИ-поиска и отображение результатов"""
+    try:
+        user_profile = request.user.userprofile
+
+        if user_profile.role == 'hr':
+            profile = IdealCandidateProfile.objects.get(id=profile_id, hr_user=request.user)
+            from .ai_matcher import AIMatcher
+            results = AIMatcher.find_candidates_for_hr(profile)
+            messages.success(request, f'Поиск завершен! Найдено {len(results)} кандидатов.')
+
+        elif user_profile.role == 'applicant':
+            profile = IdealVacancyProfile.objects.get(id=profile_id, applicant__user=request.user)
+            from .ai_matcher import AIMatcher
+            results = AIMatcher.find_vacancies_for_applicant(profile)
+            messages.success(request, f'Поиск завершен! Найдено {len(results)} вакансий.')
+
+        return redirect('ai_search_results', profile_id=profile_id)
+
+    except Exception as e:
+        messages.error(request, f'Ошибка при поиске: {str(e)}')
+        return redirect('ai_search_dashboard')
+
+@login_required
+@user_passes_test(is_hr)
+def edit_ideal_candidate_profile(request, profile_id):
+    """Редактирование идеального профиля кандидата для HR"""
+    try:
+        profile = IdealCandidateProfile.objects.get(id=profile_id, hr_user=request.user)
+    except IdealCandidateProfile.DoesNotExist:
+        messages.error(request, 'Профиль не найден или у вас нет прав для его редактирования.')
+        return redirect('ai_search_dashboard')
+
+    if request.method == 'POST':
+        form = IdealCandidateProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Профиль кандидата успешно обновлен!')
+            return redirect('ai_search_dashboard')
+    else:
+        form = IdealCandidateProfileForm(instance=profile)
 
     context = {
-        'profiles': profiles,
-        'recent_matches': recent_matches,
+        'form': form,
+        'editing': True,
+        'profile': profile,
     }
-    return render(request, 'career_app/ai_search_dashboard.html', context)
+    return render(request, 'career_app/ideal_candidate_profile_form.html', context)
+
+
+@login_required
+def ai_candidate_results(request, profile_id):
+    """Результаты поиска кандидатов для HR"""
+    try:
+        profile = IdealCandidateProfile.objects.get(id=profile_id, hr_user=request.user)
+        matches = AISearchMatch.objects.filter(
+            ideal_candidate_profile=profile
+        ).select_related('matched_applicant').order_by('-match_percentage')
+
+        context = {
+            'profile': profile,
+            'matches': matches,
+        }
+        return render(request, 'career_app/ai_candidate_results.html', context)
+
+    except IdealCandidateProfile.DoesNotExist:
+        messages.error(request, 'Профиль кандидата не найден.')
+        return redirect('ai_search_dashboard')
+
+
+@login_required
+def ai_vacancy_results(request, profile_id):
+    """Результаты поиска вакансий для соискателей"""
+    try:
+        applicant = request.user.applicant
+        profile = IdealVacancyProfile.objects.get(id=profile_id, applicant=applicant)
+        matches = AISearchMatch.objects.filter(
+            ideal_vacancy_profile=profile
+        ).select_related('matched_vacancy', 'matched_vacancy__company').order_by('-match_percentage')
+
+        context = {
+            'profile': profile,
+            'matches': matches,
+        }
+        return render(request, 'career_app/ai_vacancy_results.html', context)
+
+    except IdealVacancyProfile.DoesNotExist:
+        messages.error(request, 'Профиль вакансии не найден.')
+        return redirect('ai_search_dashboard')
+    except Applicant.DoesNotExist:
+        messages.error(request, 'Профиль соискателя не найден.')
+        return redirect('ai_search_dashboard')

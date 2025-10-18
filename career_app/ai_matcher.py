@@ -8,71 +8,38 @@ from .models import Applicant, Vacancy, IdealCandidateProfile, IdealVacancyProfi
 class AIMatcher:
 
     @staticmethod
-    def extract_key_concepts(text):
-        """Извлекает ключевые концепции из текста (смысловые блоки)"""
-        if not text:
-            return []
-
-        # Приводим к нижнему регистру
-        text = text.lower()
-
-        # Разбиваем на предложения и фразы
-        sentences = re.split(r'[.!?;]\s*', text)
-
-        concepts = []
-        for sentence in sentences:
-            if len(sentence.strip()) < 10:  # Пропускаем слишком короткие
-                continue
-
-            # Разбиваем на значимые фразы (по запятым, союзам)
-            phrases = re.split(r'[,:;]\s+|\s+и\s+|\s+или\s+', sentence)
-
-            for phrase in phrases:
-                phrase = phrase.strip()
-                if len(phrase) > 3:  # Минимальная длина фразы
-                    concepts.append(phrase)
-
-        return concepts
-
-    @staticmethod
     def calculate_semantic_similarity(text1, text2):
-        """Вычисляет смысловую схожесть между текстами"""
+        """Улучшенное вычисление смысловой схожести"""
         if not text1 or not text2:
             return 0
 
-        # Извлекаем ключевые концепции
-        concepts1 = AIMatcher.extract_key_concepts(text1)
-        concepts2 = AIMatcher.extract_key_concepts(text2)
+        text1 = text1.lower().strip()
+        text2 = text2.lower().strip()
 
-        if not concepts1 or not concepts2:
-            return 0
+        # Если тексты очень похожи по заголовкам - повышаем оценку
+        words1 = set(text1.split())
+        words2 = set(text2.split())
 
-        # Считаем совпадение концепций
-        total_similarity = 0
-        matched_pairs = []
+        # Проверяем совпадение ключевых слов
+        common_words = words1 & words2
+        if common_words:
+            word_similarity = len(common_words) / max(len(words1), len(words2)) * 100
+        else:
+            word_similarity = 0
 
-        for concept1 in concepts1:
-            best_match_score = 0
-            best_match_concept = ""
+        # Используем SequenceMatcher для общего сравнения
+        sequence_similarity = SequenceMatcher(None, text1, text2).ratio() * 100
 
-            for concept2 in concepts2:
-                # Сравниваем концепции по сходству последовательностей
-                similarity = SequenceMatcher(None, concept1, concept2).ratio()
-                if similarity > best_match_score:
-                    best_match_score = similarity
-                    best_match_concept = concept2
+        # Комбинируем оба подхода
+        final_similarity = max(word_similarity, sequence_similarity)
 
-            if best_match_score > 0.6:  # Порог значимого совпадения
-                total_similarity += best_match_score
-                matched_pairs.append((concept1, best_match_concept, best_match_score))
+        # Повышаем оценку если есть точные совпадения ключевых слов
+        key_terms = ['python', 'developer', 'разработчик', 'frontend', 'backend', 'javascript', 'react']
+        for term in key_terms:
+            if term in text1 and term in text2:
+                final_similarity += 10  # Бонус за ключевые термины
 
-        # Нормализуем результат
-        max_possible = max(len(concepts1), len(concepts2))
-        if max_possible == 0:
-            return 0
-
-        final_similarity = (total_similarity / max_possible) * 100
-        return int(final_similarity)
+        return min(int(final_similarity), 100)
 
     @staticmethod
     def extract_requirements(text):
@@ -109,10 +76,36 @@ class AIMatcher:
         return list(set(requirements))  # Убираем дубликаты
 
     @staticmethod
+    def is_almost_empty_resume(text):
+        """Проверяет, является ли резюме практически пустым"""
+        if not text:
+            return True
+
+        # Убираем стандартные метки полей и проверяем реальный контент
+        cleaned_text = re.sub(
+            r'(Должность:|Уровень опыта:|Уровень образования:|Навыки:|Резюме:|Опыт:|Образование:|О себе:|Соискатель:)',
+            '', text)
+        cleaned_text = cleaned_text.strip()
+
+        # Если после очистки осталось мало значимого текста
+        meaningful_words = [word for word in cleaned_text.split() if len(word) > 2]
+        return len(meaningful_words) < 5  # Меньше 5 значимых слов - считаем пустым
+
+    @staticmethod
     def match_candidate_with_profile(applicant, ideal_profile):
-        """Сопоставляет кандидата с идеальным профилем"""
-        # Используем полный текст резюме из новых полей
+        """Сопоставляет кандидата с идеальным профилем с улучшенной логикой"""
         applicant_text = applicant.get_full_resume_text()
+
+        # Если резюме практически пустое, сильно снижаем оценку
+        if AIMatcher.is_almost_empty_resume(applicant_text):
+            return {
+                'semantic_similarity': 0,
+                'skills_match': 0,
+                'experience_match': 0,
+                'final_score': 0,
+                'matched_concepts': [],
+                'explanation': "Резюме слишком пустое для анализа"
+            }
 
         # Смысловая схожесть
         semantic_similarity = AIMatcher.calculate_semantic_similarity(
@@ -147,7 +140,7 @@ class AIMatcher:
             'skills_match': skills_match,
             'experience_match': experience_match,
             'final_score': final_score,
-            'matched_concepts': applicant_skills[:10],  # Топ-10 совпадений
+            'matched_concepts': applicant_skills[:10],
             'explanation': AIMatcher.generate_explanation(
                 semantic_similarity, skills_match, experience_match
             )
@@ -242,13 +235,24 @@ class AIMatcher:
 
     @staticmethod
     def find_candidates_for_hr(ideal_profile):
-        """Умный поиск кандидатов"""
+        """Умный поиск кандидатов с фильтрацией пустых резюме"""
         # Ищем только опубликованные резюме
         applicants = Applicant.objects.filter(is_published=True)
         matches = []
 
+        print(f"\n=== ПОИСК КАНДИДАТОВ ДЛЯ: {ideal_profile.title} ===")
+        print(f"Всего кандидатов в базе: {applicants.count()}")
+
         for applicant in applicants:
+            # Проверяем, не пустое ли резюме
+            resume_text = applicant.get_full_resume_text()
+            if AIMatcher.is_almost_empty_resume(resume_text):
+                print(f"❌ Пропускаем пустое резюме: {applicant.first_name} {applicant.last_name}")
+                continue
+
             match_result = AIMatcher.match_candidate_with_profile(applicant, ideal_profile)
+
+            print(f"Кандидат: {applicant.first_name} {applicant.last_name} - {match_result['final_score']}%")
 
             if match_result['final_score'] >= ideal_profile.min_match_percentage:
                 matches.append({
@@ -256,12 +260,18 @@ class AIMatcher:
                     'match_details': match_result,
                     'score': match_result['final_score']
                 })
+                print(f"✅ ДОБАВЛЕН: {applicant.first_name} {applicant.last_name}")
 
-        # Сортируем по смыслу, а не по поверхностным совпадениям
+        print(f"Найдено подходящих кандидатов: {len(matches)}")
+
+        # Сортируем по смыслу
         matches.sort(key=lambda x: x['match_details']['semantic_similarity'], reverse=True)
         top_matches = matches[:ideal_profile.max_candidates]
 
-        # Сохраняем результаты
+        # Удаляем старые совпадения
+        AISearchMatch.objects.filter(ideal_candidate_profile=ideal_profile).delete()
+
+        # Сохраняем новые результаты
         for match in top_matches:
             AISearchMatch.objects.create(
                 ideal_candidate_profile=ideal_profile,
@@ -274,34 +284,49 @@ class AIMatcher:
 
     @staticmethod
     def find_vacancies_for_applicant(ideal_profile):
-        """Умный поиск вакансий"""
+        """Умный поиск вакансий с улучшенным алгоритмом"""
         vacancies = Vacancy.objects.filter(status='published')
         matches = []
 
+        print(f"\n=== УЛУЧШЕННЫЙ ПОИСК ВАКАНСИЙ ===")
+
+        # Используем правильные поля из модели IdealVacancyProfile
+        profile_title = getattr(ideal_profile, 'title', '')
+        desired_skills = getattr(ideal_profile, 'desired_skills', '')
+        tech_stack = getattr(ideal_profile, 'tech_stack', '')
+
+        # Формируем идеальный запрос из всех доступных полей
+        ideal_text = f"{profile_title} {desired_skills} {tech_stack}"
+
+        print(f"Поиск для: {profile_title}")
+        print(f"Минимальный %: {ideal_profile.min_match_percentage}")
+        print(f"Всего вакансий: {vacancies.count()}")
+
         for vacancy in vacancies:
-            # Аналогичная логика для вакансий
             vacancy_text = f"{vacancy.title} {vacancy.description} {vacancy.requirements}"
-            ideal_text = f"{ideal_profile.ideal_position} {ideal_profile.desired_skills}"
 
-            semantic_similarity = AIMatcher.calculate_semantic_similarity(
-                vacancy_text, ideal_text
-            )
+            similarity = AIMatcher.calculate_semantic_similarity(vacancy_text, ideal_text)
 
-            if semantic_similarity >= ideal_profile.min_match_percentage:
+            print(f"'{vacancy.title}' - {similarity}%")
+
+            if similarity >= ideal_profile.min_match_percentage:
                 matches.append({
                     'vacancy': vacancy,
                     'match_details': {
-                        'semantic_similarity': semantic_similarity,
-                        'final_score': semantic_similarity,
-                        'explanation': f"Смысловое соответствие: {semantic_similarity}%"
+                        'semantic_similarity': similarity,
+                        'final_score': similarity,
+                        'explanation': f"Смысловое соответствие: {similarity}%"
                     },
-                    'score': semantic_similarity
+                    'score': similarity
                 })
 
-        matches.sort(key=lambda x: x['score'], reverse=True)
-        top_matches = matches[:ideal_profile.max_vacancies]
+        print(f"Найдено совпадений: {len(matches)}")
 
-        for match in top_matches:
+        # Удаляем старые совпадения для этого профиля
+        AISearchMatch.objects.filter(ideal_vacancy_profile=ideal_profile).delete()
+
+        # Сохраняем новые результаты
+        for match in matches:
             AISearchMatch.objects.create(
                 ideal_vacancy_profile=ideal_profile,
                 matched_vacancy=match['vacancy'],
@@ -309,4 +334,4 @@ class AIMatcher:
                 match_details=match['match_details']
             )
 
-        return top_matches
+        return matches

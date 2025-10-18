@@ -62,6 +62,14 @@ urlpatterns = [
     path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
     path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.create_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
 
+path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
+    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
+    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.create_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
+    path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
+    path('ai-search/run/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
+
+
+
     path('applicant/resume/', views.create_or_edit_resume, name='create_or_edit_resume'),
     path('applicant/resume/view/', views.applicant_resume_view, name='applicant_resume_view'),
     path('resume/<int:applicant_id>/', views.applicant_resume_view, name='view_resume'),
@@ -69,4 +77,38 @@ urlpatterns = [
     # AJAX URLs
     path('ajax/get-subcategories/', views.get_subcategories, name='get_subcategories'),
     path('ajax/get-skills/', views.get_skills, name='get_skills'),
+
+    path('get-subcategories/', views.get_subcategories, name='get_subcategories'),
+
+path('force-ai-search/<int:profile_id>/', views.force_ai_search, name='force_ai_search'),
+path('run-ai-search/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
+    path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
+path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
+    path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.edit_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
+    path('ai-search/vacancy-results/<int:profile_id>/', views.ai_vacancy_results, name='ai_vacancy_results'),
+    path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
+
+
+    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
+path('ai-search/run/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
+    path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
+
+
+path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
+
+# URLs для профилей кандидатов (HR)
+path('ai-search/candidate-profile/create/', views.create_ideal_candidate_profile, name='create_ideal_candidate_profile'),
+path('ai-search/candidate-profile/edit/<int:profile_id>/', views.edit_ideal_candidate_profile, name='edit_ideal_candidate_profile'),
+
+# URLs для профилей вакансий (Соискатели)
+path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
+path('ai-search/vacancy-profile/edit/<int:profile_id>/', views.edit_ideal_vacancy_profile, name='edit_ideal_vacancy_profile'),
+
+# Универсальный URL для результатов поиска
+path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
+
+# Общие URLs для поиска
+path('ai-search/run/<int:profile_id>/', views.run_ai_search, name='run_ai_search'),
+path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
+
 ]

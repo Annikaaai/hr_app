@@ -40,11 +40,6 @@
                     <h5>Требования:</h5>
                     <p>{{ vacancy.requirements|linebreaks }}</p>
 
-                    <h5>Контактная информация:</h5>
-                    <div class="alert alert-info">
-                        {{ vacancy.contact_info|linebreaks }}
-                    </div>
-
                     <p class="text-muted">
                         <small>Создана: {{ vacancy.created_at|date:"d.m.Y" }}</small>
                         {% if vacancy.published_at %}

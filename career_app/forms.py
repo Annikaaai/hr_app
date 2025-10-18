@@ -75,30 +75,203 @@ class CustomLoginForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput, label="Пароль")
 
 
-# Остальные формы остаются без изменений
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
         fields = ['phone']
-        # Убрали поле role из формы редактирования
-
+        widgets = {
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'phone': 'Телефон',
+        }
 
 class ApplicantForm(forms.ModelForm):
     class Meta:
         model = Applicant
-        fields = ['first_name', 'last_name', 'email', 'phone', 'resume_file', 'resume_text']
+        fields = ['first_name', 'last_name', 'email', 'phone']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'first_name': 'Имя',
+            'last_name': 'Фамилия',
+            'email': 'Email',
+            'phone': 'Телефон',
+        }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Автозаполнение из пользователя, если instance не существует
+        if not self.instance.pk and hasattr(self, 'user'):
+            self.fields['first_name'].initial = self.user.first_name
+            self.fields['last_name'].initial = self.user.last_name
+            self.fields['email'].initial = self.user.email
 
 class VacancyForm(forms.ModelForm):
+    # Поля для выбора категорий
+    main_category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_main=True),
+        required=True,
+        label="Основная категория",
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_main_category'})
+    )
+
+    subcategory = forms.ModelChoiceField(
+        queryset=Category.objects.none(),  # Будет заполняться динамически
+        required=True,
+        label="Подкатегория",
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_subcategory'})
+    )
+
+    location = forms.CharField(
+        max_length=200,
+        required=True,
+        label="Местоположение",
+        widget=forms.TextInput(
+            attrs={'class': 'form-control', 'placeholder': 'Например: Москва, удаленно, гибридный формат'})
+    )
+
     class Meta:
         model = Vacancy
-        fields = ['title', 'category', 'description', 'requirements', 'salary', 'contact_info']
+        fields = ['title', 'main_category', 'subcategory', 'description', 'requirements', 'salary', 'location']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'requirements': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'salary': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например: от 100000 руб.'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Обрабатываем данные POST для инициализации queryset
+        if 'main_category' in self.data:
+            try:
+                main_category_id = int(self.data.get('main_category'))
+                self.fields['subcategory'].queryset = Category.objects.filter(
+                    parent_id=main_category_id
+                ).order_by('name')
+            except (ValueError, TypeError):
+                pass
+        elif self.instance.pk and self.instance.category:
+            # Если редактируем существующую вакансию
+            if self.instance.category.parent:
+                self.fields['main_category'].initial = self.instance.category.parent
+                self.fields['subcategory'].queryset = Category.objects.filter(
+                    parent=self.instance.category.parent
+                )
+            else:
+                self.fields['main_category'].initial = self.instance.category
+                self.fields['subcategory'].queryset = Category.objects.none()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        main_category = cleaned_data.get('main_category')
+        subcategory = cleaned_data.get('subcategory')
+
+        if main_category and subcategory:
+            # Проверяем, что подкатегория принадлежит выбранной основной категории
+            if subcategory.parent != main_category:
+                self.add_error('subcategory', "Выбранная подкатегория не принадлежит выбранной основной категории")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        subcategory = self.cleaned_data.get('subcategory')
+        if subcategory:
+            instance.category = subcategory
+
+        if commit:
+            instance.save()
+        return instance
 
 
 class InternshipForm(forms.ModelForm):
+    # Поля для выбора категорий
+    main_category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_main=True),
+        required=True,
+        label="Основная категория",
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_main_category'})
+    )
+
+    subcategory = forms.ModelChoiceField(
+        queryset=Category.objects.none(),  # Будет заполняться динамически
+        required=True,
+        label="Подкатегория",
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_subcategory'})
+    )
+
+    location = forms.CharField(
+        max_length=200,
+        required=True,
+        label="Место стажировки",
+        widget=forms.TextInput(
+            attrs={'class': 'form-control', 'placeholder': 'Например: Москва, удаленно, офис компании'})
+    )
+
     class Meta:
         model = Internship
-        fields = ['title', 'category', 'specialty', 'student_count', 'period', 'description', 'requirements']
+        fields = ['title', 'main_category', 'subcategory', 'student_count', 'period', 'description', 'requirements',
+                  'location']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'student_count': forms.NumberInput(attrs={'class': 'form-control'}),
+            'period': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например: 3 месяца, лето 2024'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'requirements': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Обрабатываем данные POST для инициализации queryset
+        if 'main_category' in self.data:
+            try:
+                main_category_id = int(self.data.get('main_category'))
+                self.fields['subcategory'].queryset = Category.objects.filter(
+                    parent_id=main_category_id
+                ).order_by('name')
+            except (ValueError, TypeError):
+                pass
+        elif self.instance.pk and self.instance.category:
+            # Если редактируем существующую стажировку
+            if self.instance.category.parent:
+                self.fields['main_category'].initial = self.instance.category.parent
+                self.fields['subcategory'].queryset = Category.objects.filter(
+                    parent=self.instance.category.parent
+                )
+            else:
+                self.fields['main_category'].initial = self.instance.category
+                self.fields['subcategory'].queryset = Category.objects.none()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        main_category = cleaned_data.get('main_category')
+        subcategory = cleaned_data.get('subcategory')
+
+        if main_category and subcategory:
+            # Проверяем, что подкатегория принадлежит выбранной основной категории
+            if subcategory.parent != main_category:
+                self.add_error('subcategory', "Выбранная подкатегория не принадлежит выбранной основной категории")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        subcategory = self.cleaned_data.get('subcategory')
+        if subcategory:
+            instance.category = subcategory
+
+        if commit:
+            instance.save()
+        return instance
+
 
 
 class InternshipResponseForm(forms.ModelForm):
@@ -214,35 +387,24 @@ class IdealVacancyProfileForm(forms.ModelForm):
         ('lead', 'Lead (Руководитель)'),
     ]
 
-    EMPLOYMENT_TYPES = [
-        ('', '--- Выберите тип ---'),
-        ('full', 'Полная занятость'),
-        ('part', 'Частичная занятость'),
-        ('project', 'Проектная работа'),
-        ('volunteer', 'Волонтерство'),
-        ('internship', 'Стажировка'),
-    ]
-
-    WORK_SCHEDULES = [
-        ('', '--- Выберите график ---'),
-        ('full_day', 'Полный день'),
-        ('flexible', 'Гибкий график'),
-        ('remote', 'Удаленная работа'),
-        ('shift', 'Сменный график'),
-        ('rotation', 'Вахтовый метод'),
+    EDUCATION_LEVELS = [
+        ('', '--- Выберите уровень образования ---'),
+        ('secondary', 'Среднее'),
+        ('secondary_professional', 'Среднее профессиональное'),
+        ('high', 'Высшее образование'),
     ]
 
     # Поля для выбора категорий
     main_category = forms.ModelChoiceField(
         queryset=Category.objects.filter(is_main=True),
-        required=False,
+        required=True,
         label="Основная категория",
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_main_category'})
     )
 
     subcategory = forms.ModelChoiceField(
         queryset=Category.objects.none(),
-        required=False,
+        required=True,
         label="Подкатегория",
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_subcategory'})
     )
@@ -258,49 +420,41 @@ class IdealVacancyProfileForm(forms.ModelForm):
 
     experience_level = forms.ChoiceField(
         choices=EXPERIENCE_LEVELS,
+        required=True,
         widget=forms.Select(attrs={'class': 'form-control'}),
         label='Уровень опыта'
     )
 
-    education_level = forms.ModelChoiceField(
-        queryset=EducationLevel.objects.all(),
-        required=False,
-        label="Уровень образования",
-        widget=forms.Select(attrs={'class': 'form-control'})
+    education_level = forms.ChoiceField(
+        choices=EDUCATION_LEVELS,
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Уровень образования'
     )
 
-    employment_types = forms.MultipleChoiceField(
-        choices=EMPLOYMENT_TYPES[1:],  # исключаем пустой выбор
+    tech_stack = forms.CharField(
         required=False,
-        label="Тип занятости",
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'employment-checkbox'}),
-        help_text="Можно выбрать несколько вариантов"
-    )
-
-    work_schedule = forms.MultipleChoiceField(
-        choices=WORK_SCHEDULES[1:],  # исключаем пустой выбор
-        required=False,
-        label="График работы",
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'schedule-checkbox'}),
-        help_text="Можно выбрать несколько вариантов"
+        max_length=500,
+        label="Стек технологий",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Например: Python, Django, React, PostgreSQL, Docker...'
+        }),
+        help_text="Перечислите технологии, с которыми хотите работать"
     )
 
     class Meta:
         model = IdealVacancyProfile
         fields = [
-            'title', 'main_category', 'subcategory', 'ideal_position',
+            'title', 'main_category', 'subcategory',
             'selected_skill_tags', 'experience_level', 'education_level',
-            'desired_salary', 'location_preferences', 'employment_types',
-            'work_schedule', 'min_match_percentage', 'max_vacancies'
+            'desired_salary', 'location_preferences', 'tech_stack',
+            'min_match_percentage', 'max_vacancies'
         ]
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Например: Удаленная работа Python разработчиком'
-            }),
-            'ideal_position': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Желаемая должность'
             }),
             'desired_salary': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -325,7 +479,6 @@ class IdealVacancyProfileForm(forms.ModelForm):
         }
         labels = {
             'title': 'Название профиля',
-            'ideal_position': 'Идеальная должность',
             'desired_salary': 'Желаемая зарплата',
             'location_preferences': 'Предпочтения по локации',
             'min_match_percentage': 'Минимальный процент совпадения (%)',
@@ -335,19 +488,35 @@ class IdealVacancyProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Если есть instance, заполняем поля
-        if self.instance and self.instance.pk:
+        # Обрабатываем данные POST для инициализации queryset
+        if 'main_category' in self.data:
+            try:
+                main_category_id = int(self.data.get('main_category'))
+                self.fields['subcategory'].queryset = Category.objects.filter(
+                    parent_id=main_category_id
+                ).order_by('name')
+
+                # Также загружаем навыки для выбранной подкатегории
+                if 'subcategory' in self.data:
+                    subcategory_id = self.data.get('subcategory')
+                    if subcategory_id:
+                        self.fields['selected_skill_tags'].queryset = SkillTag.objects.filter(
+                            category_id=subcategory_id
+                        )
+            except (ValueError, TypeError):
+                pass
+        elif self.instance and self.instance.pk:
+            # Если редактируем существующий профиль
             if self.instance.subcategory:
                 self.fields['main_category'].initial = self.instance.subcategory.parent
                 self.fields['subcategory'].queryset = Category.objects.filter(
                     parent=self.instance.subcategory.parent
                 )
-
-            if self.instance.selected_skill_tags.exists():
                 self.fields['selected_skill_tags'].queryset = SkillTag.objects.filter(
                     category=self.instance.subcategory
                 )
             else:
+                self.fields['subcategory'].queryset = Category.objects.none()
                 self.fields['selected_skill_tags'].queryset = SkillTag.objects.none()
         else:
             self.fields['subcategory'].queryset = Category.objects.none()
@@ -370,51 +539,116 @@ class IdealVacancyProfileForm(forms.ModelForm):
 
         return cleaned_data
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Сохраняем стек технологий в desired_skills для обратной совместимости
+        tech_stack = self.cleaned_data.get('tech_stack', '')
+        if tech_stack:
+            instance.desired_skills = tech_stack
+
+        if commit:
+            instance.save()
+            self.save_m2m()  # Сохраняем ManyToMany поля
+
+        return instance
 
 class ApplicantResumeForm(forms.ModelForm):
+    EXPERIENCE_LEVELS = [
+        ('', '--- Выберите уровень опыта ---'),
+        ('no_experience', 'Нет опыта'),
+        ('intern', 'Стажер'),
+        ('junior', 'Junior (Начинающий)'),
+        ('middle', 'Middle (Опытный)'),
+        ('senior', 'Senior (Старший)'),
+        ('lead', 'Lead (Руководитель)'),
+    ]
+
+    EDUCATION_LEVELS = [
+        ('', '--- Выберите уровень образования ---'),
+        ('secondary', 'Среднее'),
+        ('secondary_professional', 'Среднее профессиональное'),
+        ('high', 'Высшее образование'),
+    ]
+
+    experience_level = forms.ChoiceField(
+        choices=EXPERIENCE_LEVELS,
+        required=True,
+        label="Уровень опыта",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    education_level = forms.ChoiceField(
+        choices=EDUCATION_LEVELS,
+        required=True,
+        label="Уровень образования",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
     class Meta:
         model = Applicant
         fields = [
             'first_name', 'last_name', 'email', 'phone',
-            'position', 'experience', 'education', 'skills', 'about',
-            'resume_file', 'resume_text', 'is_published'
+            'position', 'experience_level', 'education_level', 'skills',
+            'resume_text', 'is_published'
         ]
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control bg-light',
+                'readonly': 'readonly',
+                'style': 'color: #6c757d;'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control bg-light',
+                'readonly': 'readonly',
+                'style': 'color: #6c757d;'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control bg-light',
+                'readonly': 'readonly',
+                'style': 'color: #6c757d;'
+            }),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'position': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Пример: Python разработчик, Маркетолог, Менеджер проектов'
             }),
-            'experience': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Опишите ваш опыт работы: компании, должности, проекты, достижения...'
-            }),
-            'education': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Ваше образование: вузы, курсы, сертификаты...'
-            }),
             'skills': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
+                'rows': 4,
                 'placeholder': 'Ключевые навыки: Python, Django, английский язык, управление проектами...'
-            }),
-            'about': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Расскажите о себе, ваших целях, интересах...'
             }),
             'resume_text': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 5,
-                'placeholder': 'Или просто вставьте полный текст вашего резюме здесь...'
+                'rows': 6,
+                'placeholder': 'Опишите ваш опыт работы, образование, достижения, проекты...'
             }),
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'is_published': 'Разрешить компаниям находить мое резюме в поиске',
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # Автозаполнение данных из профиля пользователя
+        if user:
+            self.fields['first_name'].initial = user.first_name
+            self.fields['last_name'].initial = user.last_name
+            self.fields['email'].initial = user.email
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Создаем текстовое представление опыта и образования для поиска
+        experience_display = dict(self.EXPERIENCE_LEVELS).get(self.cleaned_data['experience_level'], '')
+        education_display = dict(self.EDUCATION_LEVELS).get(self.cleaned_data['education_level'], '')
+
+        instance.experience = f"Уровень опыта: {experience_display}"
+        instance.education = f"Уровень образования: {education_display}"
+
+        if commit:
+            instance.save()
+        return instance
