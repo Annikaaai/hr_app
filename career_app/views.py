@@ -1122,6 +1122,12 @@ def create_chat_from_application(request, application_id):
     return redirect('chat_detail', thread_id=thread.id)
 
 
+def terms_of_use(request):
+    return render(request, 'career_app/terms_of_use.html')
+
+def privacy_policy(request):
+    return render(request, 'career_app/privacy_policy.html')
+
 @login_required
 def create_chat_from_internship_response(request, response_id):
     """Создание чата из отклика на стажировку"""
