@@ -18,6 +18,32 @@
     </div>
     {% endif %}
 
+
+
+<div class="col-md-4">
+    <div class="card bg-success text-white">
+        <div class="card-body">
+            <h5 class="card-title">💼 Умный поиск</h5>
+            <p class="card-text">Найдите идеальные вакансии с помощью ИИ</p>
+            <a href="{% url 'ai_search_dashboard' %}" class="btn btn-light">Запустить поиск</a>
+        </div>
+    </div>
+</div>
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">📝 Мое резюме</h5>
+            {% if applicant.resume_text or applicant.position %}
+            <p class="card-text">Резюме заполнено</p>
+            <a href="{% url 'create_or_edit_resume' %}" class="btn btn-outline-primary">Редактировать резюме</a>
+            <a href="{% url 'applicant_resume_view' %}" class="btn btn-outline-secondary">Просмотреть</a>
+            {% else %}
+            <p class="card-text text-muted">Резюме еще не создано</p>
+            <a href="{% url 'create_or_edit_resume' %}" class="btn btn-primary">Создать резюме</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
     <div class="row mt-4">
         <!-- Отклики на вакансии -->
         <div class="col-md-6">
