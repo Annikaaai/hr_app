@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Умный поиск с ИИ</h2>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Быстрый поиск</h5>
+
+                    {% if user.userprofile.role == 'hr' %}
+                    <a href="{% url 'create_ideal_candidate_profile' %}" class="btn btn-primary mb-3">
+                        Создать идеальный профиль кандидата
+                    </a>
+                    <p class="text-muted">
+                        Опишите идеального кандидата, и ИИ найдет лучших совпадений из базы резюме
+                    </p>
+                    {% elif user.userprofile.role == 'applicant' %}
+                    <a href="{% url 'create_ideal_vacancy_profile' %}" class="btn btn-primary mb-3">
+                        Создать идеальную вакансию
+                    </a>
+                    <p class="text-muted">
+                        Опишите идеальную работу, и ИИ найдет лучшие вакансии для вас
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if recent_matches %}
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">Последние результаты</h5>
+                    {% for match in recent_matches %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                {% if match.matched_applicant %}
+                                <strong>{{ match.matched_applicant }}</strong>
+                                {% else %}
+                                <strong>{{ match.matched_vacancy.title }}</strong>
+                                {% endif %}
+                                <span class="badge bg-success ms-2">{{ match.match_percentage }}%</span>
+                            </div>
+                            <small class="text-muted">{{ match.created_at|date:"d.m.Y" }}</small>
+                        </div>
+                        {% if match.matched_applicant %}
+                        <a href="{% url 'send_offer_to_candidate' match.id %}" class="btn btn-sm btn-outline-primary mt-1">
+                            Отправить офер
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Мои профили поиска</h5>
+                    {% for profile in profiles %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <h6>{{ profile.title }}</h6>
+                        <small class="text-muted">
+                            Совпадение: от {{ profile.min_match_percentage }}%<br>
+                            {% if user.userprofile.role == 'hr' %}
+                            Кандидатов: до {{ profile.max_candidates }}
+                            {% else %}
+                            Вакансий: до {{ profile.max_vacancies }}
+                            {% endif %}
+                        </small>
+                        <br>
+                        <a href="{% url 'ai_search_results' profile.id %}" class="btn btn-sm btn-outline-secondary mt-1">
+                            Результаты
+                        </a>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">Нет созданных профилей</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

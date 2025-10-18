@@ -140,3 +140,128 @@ class ChatMessageForm(forms.ModelForm):
             'message': 'Сообщение',
             'file': 'Прикрепить файл'
         }
+
+# Добавить в forms.py
+
+class IdealCandidateProfileForm(forms.ModelForm):
+    EXPERIENCE_LEVELS = [
+        ('', '--- Выберите уровень ---'),
+        ('junior', 'Junior (Начинающий)'),
+        ('middle', 'Middle (Опытный)'),
+        ('senior', 'Senior (Старший)'),
+        ('lead', 'Lead (Руководитель)'),
+    ]
+
+    experience_level = forms.ChoiceField(
+        choices=EXPERIENCE_LEVELS,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Уровень опыта'
+    )
+
+    class Meta:
+        model = IdealCandidateProfile
+        fields = [
+            'title', 'ideal_resume', 'required_skills', 'experience_level',
+            'education_requirements', 'min_match_percentage', 'max_candidates'
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например: Старший Python разработчик'}),
+            'ideal_resume': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 6,
+                'placeholder': 'Опишите идеального кандидата: навыки, опыт, образование, личные качества...'
+            }),
+            'required_skills': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Python, Django, REST API, Docker, PostgreSQL, лидерство'
+            }),
+            'education_requirements': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Требования к образованию (необязательно)'
+            }),
+            'min_match_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '10',
+                'max': '100',
+                'value': '70'
+            }),
+            'max_candidates': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '50',
+                'value': '10'
+            }),
+        }
+        labels = {
+            'title': 'Название профиля',
+            'ideal_resume': 'Идеальное резюме',
+            'required_skills': 'Требуемые навыки',
+            'education_requirements': 'Требования к образованию',
+            'min_match_percentage': 'Минимальный процент совпадения (%)',
+            'max_candidates': 'Количество кандидатов для поиска',
+        }
+
+class IdealVacancyProfileForm(forms.ModelForm):
+    EXPERIENCE_LEVELS = [
+        ('', '--- Выберите уровень ---'),
+        ('junior', 'Junior (Начинающий)'),
+        ('middle', 'Middle (Опытный)'),
+        ('senior', 'Senior (Старший)'),
+        ('lead', 'Lead (Руководитель)'),
+    ]
+
+    experience_level = forms.ChoiceField(
+        choices=EXPERIENCE_LEVELS,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Уровень опыта'
+    )
+
+    class Meta:
+        model = IdealVacancyProfile
+        fields = [
+            'title', 'ideal_position', 'desired_skills', 'experience_level',
+            'desired_salary', 'location_preferences', 'min_match_percentage', 'max_vacancies'
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например: Удаленная работа Python разработчиком'}),
+            'ideal_position': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Желаемая должность'
+            }),
+            'desired_skills': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Желаемые навыки и технологии'
+            }),
+            'desired_salary': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Пример: от 100000 руб.'
+            }),
+            'location_preferences': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Пример: Москва, удаленно'
+            }),
+            'min_match_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '10',
+                'max': '100',
+                'value': '70'
+            }),
+            'max_vacancies': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '50',
+                'value': '10'
+            }),
+        }
+        labels = {
+            'title': 'Название профиля',
+            'ideal_position': 'Идеальная должность',
+            'desired_skills': 'Желаемые навыки',
+            'desired_salary': 'Желаемая зарплата',
+            'location_preferences': 'Предпочтения по локации',
+            'min_match_percentage': 'Минимальный процент совпадения (%)',
+            'max_vacancies': 'Количество вакансий для поиска',
+        }

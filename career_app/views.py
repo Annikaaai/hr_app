@@ -1151,3 +1151,160 @@ def create_chat_from_internship_response(request, response_id):
         messages.success(request, 'Чат создан!')
 
     return redirect('chat_detail', thread_id=thread.id)
+
+
+# Добавить в views.py
+
+from .ai_matcher import AIMatcher
+from .forms import IdealCandidateProfileForm, IdealVacancyProfileForm
+
+
+@login_required
+@user_passes_test(is_hr)
+def create_ideal_candidate_profile(request):
+    """Создание идеального профиля кандидата для HR"""
+    if request.method == 'POST':
+        form = IdealCandidateProfileForm(request.POST)
+        if form.is_valid():
+            profile = form.save(commit=False)
+            profile.hr_user = request.user
+            profile.save()
+
+            # Запускаем поиск кандидатов
+            matches = AIMatcher.find_candidates_for_hr(profile)
+
+            messages.success(request, f'Найдено {len(matches)} подходящих кандидатов!')
+            return redirect('ai_search_results', profile_id=profile.id)
+    else:
+        form = IdealCandidateProfileForm()
+
+    context = {'form': form}
+    return render(request, 'career_app/ideal_candidate_profile_form.html', context)
+
+
+@login_required
+def create_ideal_vacancy_profile(request):
+    """Создание идеального профиля вакансии для соискателя"""
+    try:
+        applicant = request.user.applicant
+    except Applicant.DoesNotExist:
+        messages.error(request, 'Пожалуйста, заполните ваш профиль соискателя.')
+        return redirect('create_applicant_profile')
+
+    if request.method == 'POST':
+        form = IdealVacancyProfileForm(request.POST)
+        if form.is_valid():
+            profile = form.save(commit=False)
+            profile.applicant = applicant
+            profile.save()
+
+            # Запускаем поиск вакансий
+            matches = AIMatcher.find_vacancies_for_applicant(profile)
+
+            messages.success(request, f'Найдено {len(matches)} подходящих вакансий!')
+            return redirect('ai_search_results', profile_id=profile.id)
+    else:
+        form = IdealVacancyProfileForm()
+
+    context = {'form': form}
+    return render(request, 'career_app/ideal_vacancy_profile_form.html', context)
+
+
+@login_required
+def ai_search_results(request, profile_id):
+    """Результаты ИИ-поиска"""
+    user_profile = request.user.userprofile
+
+    if user_profile.role == 'hr':
+        profile = get_object_or_404(IdealCandidateProfile, id=profile_id, hr_user=request.user)
+        matches = AISearchMatch.objects.filter(
+            ideal_candidate_profile=profile
+        ).select_related('matched_applicant').order_by('-match_percentage')
+        template = 'career_app/ai_candidate_results.html'
+    else:
+        profile = get_object_or_404(IdealVacancyProfile, id=profile_id, applicant__user=request.user)
+        matches = AISearchMatch.objects.filter(
+            ideal_vacancy_profile=profile
+        ).select_related('matched_vacancy', 'matched_vacancy__company').order_by('-match_percentage')
+        template = 'career_app/ai_vacancy_results.html'
+
+    context = {
+        'profile': profile,
+        'matches': matches,
+    }
+    return render(request, template, context)
+
+
+@login_required
+@user_passes_test(is_hr)
+def send_offer_to_candidate(request, match_id):
+    """Отправка офера кандидату"""
+    match = get_object_or_404(AISearchMatch, id=match_id, ideal_candidate_profile__hr_user=request.user)
+
+    if request.method == 'POST':
+        message_text = request.POST.get('message', '')
+
+        # Создаем чат с кандидатом
+        thread, created = ChatThread.get_or_create_chat(
+            vacancy=match.ideal_candidate_profile.vacancy,  # Можно привязать к конкретной вакансии
+            applicant=match.matched_applicant,
+            hr_user=request.user
+        )
+
+        if created or thread:
+            # Отправляем сообщение с офером
+            offer_message = f"""🎯 Предложение от {request.user.userprofile.company.name}
+
+По результатам ИИ-поиска ваша кандидатура подходит нам на {match.match_percentage}%!
+
+{match.match_details.get('matched_skills', [])}
+
+{message_text}
+
+Готовы обсудить детали?"""
+
+            ChatMessage.objects.create(
+                thread=thread,
+                sender=request.user,
+                message=offer_message
+            )
+
+            match.status = 'offer_sent'
+            match.save()
+
+            messages.success(request, 'Предложение отправлено кандидату!')
+            return redirect('chat_detail', thread_id=thread.id)
+
+    context = {'match': match}
+    return render(request, 'career_app/send_offer.html', context)
+
+
+@login_required
+def ai_search_dashboard(request):
+    """Дашборд ИИ-поиска"""
+    user_profile = request.user.userprofile
+
+    if user_profile.role == 'hr':
+        profiles = IdealCandidateProfile.objects.filter(hr_user=request.user)
+        recent_matches = AISearchMatch.objects.filter(
+            ideal_candidate_profile__hr_user=request.user
+        ).select_related('matched_applicant')[:5]
+    elif user_profile.role == 'applicant':
+        try:
+            applicant = request.user.applicant
+            profiles = IdealVacancyProfile.objects.filter(applicant=applicant)
+            recent_matches = AISearchMatch.objects.filter(
+                ideal_vacancy_profile__applicant=applicant
+            ).select_related('matched_vacancy', 'matched_vacancy__company')[:5]
+        except Applicant.DoesNotExist:
+            profiles = []
+            recent_matches = []
+    else:
+        profiles = []
+        recent_matches = []
+
+    context = {
+        'profiles': profiles,
+        'recent_matches': recent_matches,
+    }
+    return render(request, 'career_app/ai_search_dashboard.html', context)

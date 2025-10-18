@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Создание идеального профиля вакансии</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Опишите идеальную работу, и наша ИИ-система найдет лучшие вакансии
+                        на основе смыслового анализа.
+                    </p>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                            <div class="text-danger">
+                                {% for error in field.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'ai_search_dashboard' %}" class="btn btn-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">
+                                Запустить умный поиск вакансий
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5>Советы по заполнению:</h5>
+                    <ul class="text-muted">
+                        <li>Описывайте желаемую работу естественным языком</li>
+                        <li>Указывайте не только должность, но и желаемые условия работы</li>
+                        <li>Чем подробнее описание, тем точнее будут результаты</li>
+                        <li>ИИ понимает разные формулировки и синонимы</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

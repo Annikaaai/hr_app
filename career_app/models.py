@@ -384,3 +384,75 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender.username}: {self.message[:50]}"
+
+
+# Добавить в models.py после существующих моделей
+
+class IdealCandidateProfile(models.Model):
+    """Идеальный профиль кандидата от HR"""
+    hr_user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="HR")
+    title = models.CharField(max_length=200, verbose_name="Название профиля")
+    ideal_resume = models.TextField(verbose_name="Идеальное резюме")
+    required_skills = models.TextField(verbose_name="Требуемые навыки")
+    experience_level = models.CharField(max_length=100, verbose_name="Уровень опыта")
+    education_requirements = models.TextField(blank=True, verbose_name="Требования к образованию")
+    min_match_percentage = models.IntegerField(default=70, verbose_name="Минимальный % совпадения")
+    max_candidates = models.IntegerField(default=10, verbose_name="Максимум кандидатов")
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Идеальный профиль кандидата"
+        verbose_name_plural = "Идеальные профили кандидатов"
+
+    def __str__(self):
+        return f"{self.title} - {self.hr_user.username}"
+
+
+class IdealVacancyProfile(models.Model):
+    """Идеальная вакансия от соискателя"""
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, verbose_name="Соискатель")
+    title = models.CharField(max_length=200, verbose_name="Название профиля")
+    ideal_position = models.CharField(max_length=200, verbose_name="Идеальная должность")
+    desired_skills = models.TextField(verbose_name="Желаемые навыки")
+    experience_level = models.CharField(max_length=100, verbose_name="Уровень опыта")
+    desired_salary = models.CharField(max_length=100, blank=True, verbose_name="Желаемая зарплата")
+    location_preferences = models.CharField(max_length=200, blank=True, verbose_name="Предпочтения по локации")
+    min_match_percentage = models.IntegerField(default=70, verbose_name="Минимальный % совпадения")
+    max_vacancies = models.IntegerField(default=10, verbose_name="Максимум вакансий")
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Идеальный профиль вакансии"
+        verbose_name_plural = "Идеальные профили вакансий"
+
+    def __str__(self):
+        return f"{self.title} - {self.applicant}"
+
+
+class AISearchMatch(models.Model):
+    """Результаты сопоставления ИИ"""
+    ideal_candidate_profile = models.ForeignKey(IdealCandidateProfile, on_delete=models.CASCADE, null=True, blank=True)
+    ideal_vacancy_profile = models.ForeignKey(IdealVacancyProfile, on_delete=models.CASCADE, null=True, blank=True)
+    matched_applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, null=True, blank=True)
+    matched_vacancy = models.ForeignKey(Vacancy, on_delete=models.CASCADE, null=True, blank=True)
+    match_percentage = models.IntegerField(verbose_name="Процент совпадения")
+    match_details = models.JSONField(verbose_name="Детали совпадения", default=dict)
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Ожидает'),
+        ('offer_sent', 'Офер отправлен'),
+        ('accepted', 'Принято'),
+        ('rejected', 'Отклонено'),
+    ], default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Результат ИИ-поиска"
+        verbose_name_plural = "Результаты ИИ-поиска"
+
+    def __str__(self):
+        if self.ideal_candidate_profile:
+            return f"Кандидат {self.matched_applicant} - {self.match_percentage}%"
+        else:
+            return f"Вакансия {self.matched_vacancy} - {self.match_percentage}%"

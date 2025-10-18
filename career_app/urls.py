@@ -4,7 +4,8 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('login/', views.role_selection, name='role_selection'),
+    path('role_selection/', views.role_selection, name='role_selection'),
+    path('login/', views.custom_login, name='custom_login'),
 
     path('register/', views.register, name='register'),
     path('pending-approval/', views.pending_approval, name='pending_approval'),
@@ -51,4 +52,12 @@ urlpatterns = [
     path('chats/<int:thread_id>/', views.chat_detail, name='chat_detail'),
     path('chats/create-from-application/<int:application_id>/', views.create_chat_from_application, name='create_chat_from_application'),
     path('chats/create-from-internship/<int:response_id>/', views.create_chat_from_internship_response, name='create_chat_from_internship_response'),
+
+    # ИИ-поиск
+    path('ai-search/', views.ai_search_dashboard, name='ai_search_dashboard'),
+    path('ai-search/candidate-profile/create/', views.create_ideal_candidate_profile,
+         name='create_ideal_candidate_profile'),
+    path('ai-search/vacancy-profile/create/', views.create_ideal_vacancy_profile, name='create_ideal_vacancy_profile'),
+    path('ai-search/results/<int:profile_id>/', views.ai_search_results, name='ai_search_results'),
+    path('ai-search/send-offer/<int:match_id>/', views.send_offer_to_candidate, name='send_offer_to_candidate'),
 ]
