@@ -34,11 +34,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'vacancy_list' %}">
-                            <i class="fas fa-briefcase me-1"></i>Вакансии
-                        </a>
-                    </li>
+<<<<<<< HEAD
                     {% if user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'dashboard' %}">
@@ -71,6 +67,30 @@
                         {% endif %}
                     {% endif %}
                 </ul>
+=======
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'vacancy_list' %}">Вакансии</a>
+    </li>
+    {% if user.is_authenticated %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'dashboard' %}">Личный кабинет</a>
+        </li>
+        {% if user.userprofile.role == 'admin' %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'analytics' %}">Аналитика</a>
+            </li>
+        {% elif user.userprofile.role == 'hr' %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'create_vacancy' %}">Создать вакансию</a>
+            </li>
+        {% elif user.userprofile.role == 'university' %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'create_internship' %}">Создать стажировку</a>
+            </li>
+        {% endif %}
+    {% endif %}
+</ul>
+>>>>>>> origin/feature_career
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
@@ -85,9 +105,10 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">
-                                <i class="fas fa-sign-in-alt me-1"></i>Войти
-                            </a>
+<<<<<<< HEAD
+=======
+                            <a class="nav-link" href="{% url 'role_selection' %}">Войти</a>
+>>>>>>> origin/feature_career
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'register' %}">

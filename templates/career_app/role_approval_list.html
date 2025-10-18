@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Модерация запросов на роли</h2>
+
+    <!-- Навигация -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" href="#pending" data-bs-toggle="tab">Ожидающие ({{ pending_requests|length }})</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#approved" data-bs-toggle="tab">Подтвержденные</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#rejected" data-bs-toggle="tab">Отклоненные</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Ожидающие запросы -->
+        <div class="tab-pane fade show active" id="pending">
+            {% if pending_requests %}
+            <div class="row">
+                {% for request in pending_requests %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ request.user.username }}</h6>
+                            <span class="badge bg-warning">Ожидает</span>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Запрашиваемая роль:</strong> {{ request.get_requested_role_display }}</p>
+                            <p><strong>Email:</strong> {{ request.user.email }}</p>
+
+                            {% if request.company_name %}
+                            <p><strong>Компания:</strong> {{ request.company_name }}</p>
+                            {% endif %}
+
+                            {% if request.institution_name %}
+                            <p><strong>Учебное заведение:</strong> {{ request.institution_name }}</p>
+                            {% endif %}
+
+                            <p><strong>Дата запроса:</strong> {{ request.created_at|date:"d.m.Y H:i" }}</p>
+
+                            <div class="d-flex gap-2 mt-3">
+                                <form method="post" action="{% url 'approve_role' request.id 'approve' %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm">Подтвердить</button>
+                                </form>
+                                <form method="post" action="{% url 'approve_role' request.id 'reject' %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm">Отклонить</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Нет ожидающих запросов на подтверждение ролей.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Подтвержденные запросы -->
+        <div class="tab-pane fade" id="approved">
+            {% if approved_requests %}
+            <div class="row">
+                {% for request in approved_requests %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ request.user.username }}</h6>
+                            <span class="badge bg-success">Подтвержден</span>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Роль:</strong> {{ request.get_requested_role_display }}</p>
+                            <p><strong>Подтверждено:</strong> {{ request.reviewed_at|date:"d.m.Y H:i" }}</p>
+                            <p><strong>Администратором:</strong> {{ request.reviewed_by.username }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Нет подтвержденных запросов.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Отклоненные запросы -->
+        <div class="tab-pane fade" id="rejected">
+            {% if rejected_requests %}
+            <div class="row">
+                {% for request in rejected_requests %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ request.user.username }}</h6>
+                            <span class="badge bg-danger">Отклонен</span>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Запрашиваемая роль:</strong> {{ request.get_requested_role_display }}</p>
+                            <p><strong>Отклонено:</strong> {{ request.reviewed_at|date:"d.m.Y H:i" }}</p>
+                            <p><strong>Администратором:</strong> {{ request.reviewed_by.username }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Нет отклоненных запросов.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

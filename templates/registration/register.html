@@ -4,40 +4,128 @@
 {% block content %}
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-8">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header bg-success text-white">
                     <h4 class="mb-0 text-center">Регистрация в системе</h4>
                 </div>
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
 
-                        <div class="mb-3">
-                            {{ form.username|as_crispy_field }}
+                        <h5 class="mb-3">Основная информация</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.username|as_crispy_field }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.email|as_crispy_field }}
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            {{ form.email|as_crispy_field }}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.password1|as_crispy_field }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.password2|as_crispy_field }}
+                                </div>
+                            </div>
                         </div>
 
+                        <hr>
+                        <h5 class="mb-3">Выбор роли</h5>
                         <div class="mb-3">
-                            {{ form.password1|as_crispy_field }}
+                            {{ form.role|as_crispy_field }}
                         </div>
 
-                        <div class="mb-3">
-                            {{ form.password2|as_crispy_field }}
+                        <!-- Поля, которые появляются при выборе HR -->
+                        <div id="hr-fields" style="display: none;">
+                            <div class="alert alert-warning">
+                                <small>После регистрации ваш аккаунт будет отправлен на подтверждение администратором.</small>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.company_name|as_crispy_field }}
+                            </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100">Зарегистрироваться</button>
+                        <!-- Поля, которые появляются при выборе University -->
+                        <div id="university-fields" style="display: none;">
+                            <div class="alert alert-warning">
+                                <small>После регистрации ваш аккаунт будет отправлен на подтверждение администратором.</small>
+                            </div>
+                            <div class="mb-3">
+                                {{ form.institution_name|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <!-- Информация для соискателя -->
+                        <div id="applicant-info" style="display: none;">
+                            <div class="alert alert-info">
+                                <small>Как соискатель вы сможете просматривать вакансии, откликаться на них и управлять своими заявками.</small>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 mt-3">Зарегистрироваться</button>
                     </form>
 
                     <div class="mt-3 text-center">
-                        <small>Уже есть аккаунт? <a href="{% url 'login' %}">Войдите</a></small>
+                        <small>Уже есть аккаунт? <a href="{% url 'role_selection' %}">Войдите в систему</a></small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('id_role');
+    const hrFields = document.getElementById('hr-fields');
+    const universityFields = document.getElementById('university-fields');
+    const applicantInfo = document.getElementById('applicant-info');
+
+    function toggleFields() {
+        const selectedRole = roleSelect.value;
+
+        // Скрываем все поля
+        hrFields.style.display = 'none';
+        universityFields.style.display = 'none';
+        applicantInfo.style.display = 'none';
+
+        // Показываем соответствующие поля
+        if (selectedRole === 'hr') {
+            hrFields.style.display = 'block';
+        } else if (selectedRole === 'university') {
+            universityFields.style.display = 'block';
+        } else if (selectedRole === 'applicant') {
+            applicantInfo.style.display = 'block';
+        }
+    }
+
+    // Инициализация при загрузке
+    toggleFields();
+
+    // Обработчик изменения выбора
+    roleSelect.addEventListener('change', toggleFields);
+});
+</script>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+}
+</style>
 {% endblock %}

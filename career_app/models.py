@@ -4,12 +4,42 @@ from django.utils import timezone
 from django.urls import reverse
 
 
+# Добавим новую модель для запросов на подтверждение роли
+class RoleApprovalRequest(models.Model):
+    ROLE_CHOICES = [
+        ('hr', 'HR компании'),
+        ('university', 'Представитель вуза'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
+    requested_role = models.CharField(max_length=20, choices=ROLE_CHOICES, verbose_name="Запрашиваемая роль")
+    company_name = models.CharField(max_length=200, blank=True, verbose_name="Название компании")
+    institution_name = models.CharField(max_length=200, blank=True, verbose_name="Название учебного заведения")
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'На рассмотрении'),
+        ('approved', 'Одобрено'),
+        ('rejected', 'Отклонено'),
+    ], default='pending', verbose_name="Статус")
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='reviewed_requests', verbose_name="Рассмотрено")
+
+    class Meta:
+        verbose_name = "Запрос на подтверждение роли"
+        verbose_name_plural = "Запросы на подтверждение роли"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_requested_role_display()}"
+
+
 class Company(models.Model):
     name = models.CharField(max_length=200, verbose_name="Название компании")
     description = models.TextField(verbose_name="Описание")
     contact_email = models.EmailField(verbose_name="Контактный email")
     contact_phone = models.CharField(max_length=20, verbose_name="Контактный телефон")
     created_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False, verbose_name="Подтверждена")  # Новое поле
 
     objects = models.Manager()
 
@@ -26,6 +56,7 @@ class EducationalInstitution(models.Model):
     contact_email = models.EmailField(verbose_name="Контактный email")
     contact_phone = models.CharField(max_length=20, verbose_name="Контактный телефон")
     created_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False, verbose_name="Подтверждено")  # Новое поле
 
     objects = models.Manager()
 
@@ -36,18 +67,32 @@ class EducationalInstitution(models.Model):
     def __str__(self):
         return self.name
 
+
 class Category(models.Model):
     name = models.CharField(max_length=100, verbose_name="Название категории")
     description = models.TextField(blank=True, verbose_name="Описание")
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True,
+                               verbose_name="Родительская категория")
+    is_main = models.BooleanField(default=False, verbose_name="Основная категория")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
-        ordering = ['name']
+        ordering = ['is_main', 'name']
 
     def __str__(self):
         return self.name
+
+    def get_subcategories(self):
+        """Возвращает все подкатегории"""
+        return Category.objects.filter(parent=self)
+
+    def is_subcategory(self):
+        """Проверяет, является ли категория подкатегорией"""
+        return self.parent is not None
+
+
 class Vacancy(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Черновик'),
@@ -180,6 +225,7 @@ class UserProfile(models.Model):
     institution = models.ForeignKey(EducationalInstitution, on_delete=models.SET_NULL, null=True, blank=True,
                                     verbose_name="Учебное заведение")
     phone = models.CharField(max_length=20, blank=True, verbose_name="Телефон")
+    is_approved = models.BooleanField(default=False, verbose_name="Подтвержден")
 
     objects = models.Manager()
 
@@ -189,6 +235,23 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+    def can_access_dashboard(self):
+        """Проверяет, может ли пользователь получить доступ к дашборду"""
+        # Админы всегда имеют доступ
+        if self.role == 'admin':
+            return True
+        # Соискатели всегда имеют доступ
+        if self.role == 'applicant':
+            return True
+        # HR и университеты требуют подтверждения
+        return self.is_approved
+
+    def save(self, *args, **kwargs):
+        # Админы автоматически подтверждаются
+        if self.role == 'admin':
+            self.is_approved = True
+        super().save(*args, **kwargs)
 
 
 class InternshipApplication(models.Model):
@@ -238,5 +301,3 @@ class InternshipResponse(models.Model):
 
     def __str__(self):
         return f"{self.applicant} - {self.internship.title}"
-
-

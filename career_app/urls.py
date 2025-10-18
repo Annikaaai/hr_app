@@ -1,18 +1,20 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
-
-    # Аутентификация
+    path('role-selection/', views.role_selection, name='role_selection'),
+    path('login/', views.custom_login, name='custom_login'),
     path('register/', views.register, name='register'),
+    path('pending-approval/', views.pending_approval, name='pending_approval'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
 
-    # Вакансии
-    path('vacancies/', views.vacancy_list, name='vacancy_list'),
-    path('vacancies/<int:pk>/', views.vacancy_detail, name='vacancy_detail'),
-    path('internships/<int:pk>/', views.internship_detail, name='internship_detail'),
-    path('vacancies/create/', views.create_vacancy, name='create_vacancy'),
-    path('internships/create/', views.create_internship, name='create_internship'),
+    # Админские URLs
+    path('moderation/role-approval/', views.role_approval_list, name='role_approval_list'),
+    path('moderation/role-approval/<int:request_id>/<str:action>/', views.approve_role, name='approve_role'),
+    path('moderation/admin-promotion/', views.admin_promotion, name='admin_promotion'),
+    path('moderation/revoke-admin/<int:user_id>/', views.revoke_admin, name='revoke_admin'),
 
     # Дашборды
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -21,16 +23,26 @@ urlpatterns = [
     path('dashboard/university/', views.university_dashboard, name='university_dashboard'),
     path('dashboard/applicant/', views.applicant_dashboard, name='applicant_dashboard'),
 
+    # Вакансии
+    path('vacancies/', views.vacancy_list, name='vacancy_list'),
+    path('vacancies/<int:pk>/', views.vacancy_detail, name='vacancy_detail'),
+    path('vacancies/create/', views.create_vacancy, name='create_vacancy'),
+
+    # Стажировки
+    path('internships/', views.internship_list, name='internship_list'),
+    path('internships/<int:pk>/', views.internship_detail, name='internship_detail'),
+    path('internships/create/', views.create_internship, name='create_internship'),
+
     # Профиль
     path('profile/setup/', views.profile_setup, name='profile_setup'),
     path('profile/applicant/create/', views.create_applicant_profile, name='create_applicant_profile'),
     path('profile/applicant/update/', views.update_applicant_profile, name='update_applicant_profile'),
 
-    # Модерация
+    # Модерация (админ)
     path('moderation/', views.moderation_list, name='moderation_list'),
     path('moderation/vacancy/<int:pk>/<str:action>/', views.moderate_vacancy, name='moderate_vacancy'),
     path('moderation/internship/<int:pk>/<str:action>/', views.moderate_internship, name='moderate_internship'),
 
-    # Аналитика
+    # Аналитика (админ)
     path('analytics/', views.analytics, name='analytics'),
 ]
