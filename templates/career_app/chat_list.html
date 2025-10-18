@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Мои чаты</h4>
+                </div>
+                <div class="card-body">
+                    {% if threads %}
+                        <div class="list-group">
+                            {% for thread in threads %}
+                            <a href="{% url 'chat_detail' thread.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        {% if thread.vacancy %}
+                                            {{ thread.vacancy.title }}
+                                        {% else %}
+                                            {{ thread.internship.title }}
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">{{ thread.updated_at|timesince }} назад</small>
+                                </div>
+                                <p class="mb-1">
+                                    {% if user.userprofile.role == 'applicant' %}
+                                        {% if thread.hr_user %}
+                                            С: {{ thread.hr_user.get_full_name|default:thread.hr_user.username }} ({{ thread.vacancy.company.name }})
+                                        {% else %}
+                                            С: {{ thread.university_user.get_full_name|default:thread.university_user.username }} ({{ thread.internship.institution.name }})
+                                        {% endif %}
+                                    {% else %}
+                                        С: {{ thread.applicant.first_name }} {{ thread.applicant.last_name }}
+                                    {% endif %}
+                                </p>
+                                {% if thread.unread_count > 0 %}
+                                <span class="badge bg-primary rounded-pill">{{ thread.unread_count }}</span>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">У вас пока нет активных чатов.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

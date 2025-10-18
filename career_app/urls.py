@@ -4,8 +4,9 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('role-selection/', views.role_selection, name='role_selection'),
+    path('role_selection/', views.role_selection, name='role_selection'),
     path('login/', views.custom_login, name='custom_login'),
+
     path('register/', views.register, name='register'),
     path('pending-approval/', views.pending_approval, name='pending_approval'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
@@ -45,4 +46,10 @@ urlpatterns = [
 
     # Аналитика (админ)
     path('analytics/', views.analytics, name='analytics'),
+
+# Чат
+    path('chats/', views.chat_list, name='chat_list'),
+    path('chats/<int:thread_id>/', views.chat_detail, name='chat_detail'),
+    path('chats/create-from-application/<int:application_id>/', views.create_chat_from_application, name='create_chat_from_application'),
+    path('chats/create-from-internship/<int:response_id>/', views.create_chat_from_internship_response, name='create_chat_from_internship_response'),
 ]

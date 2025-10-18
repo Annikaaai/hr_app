@@ -301,3 +301,86 @@ class InternshipResponse(models.Model):
 
     def __str__(self):
         return f"{self.applicant} - {self.internship.title}"
+
+
+# models.py - добавить новые модели
+class ChatThread(models.Model):
+    """Поток переписки между участниками"""
+    vacancy = models.ForeignKey(Vacancy, on_delete=models.CASCADE, null=True, blank=True)
+    internship = models.ForeignKey(Internship, on_delete=models.CASCADE, null=True, blank=True)
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE)
+    hr_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='hr_chats')
+    university_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='university_chats')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    @classmethod
+    def get_or_create_chat(cls, vacancy=None, internship=None, applicant=None, hr_user=None, university_user=None):
+        """Создает или возвращает существующий чат"""
+        if vacancy and applicant:
+            thread, created = cls.objects.get_or_create(
+                vacancy=vacancy,
+                applicant=applicant,
+                defaults={
+                    'hr_user': hr_user,
+                    'is_active': True
+                }
+            )
+        elif internship and applicant:
+            thread, created = cls.objects.get_or_create(
+                internship=internship,
+                applicant=applicant,
+                defaults={
+                    'university_user': university_user,
+                    'is_active': True
+                }
+            )
+        else:
+            return None, False
+
+        return thread, created
+    class Meta:
+        verbose_name = "Чат"
+        verbose_name_plural = "Чаты"
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        if self.vacancy:
+            return f"Чат: {self.applicant} - {self.vacancy.title}"
+        else:
+            return f"Чат: {self.applicant} - {self.internship.title}"
+
+    def get_other_participant(self, current_user):
+        """Получить второго участника чата"""
+        if current_user == self.applicant.user:
+            if self.hr_user:
+                return self.hr_user
+            elif self.university_user:
+                return self.university_user
+        return self.applicant.user
+
+    def get_subject(self):
+        """Получить тему чата"""
+        if self.vacancy:
+            return self.vacancy.title
+        else:
+            return self.internship.title
+
+
+class ChatMessage(models.Model):
+    """Сообщение в чате"""
+    thread = models.ForeignKey(ChatThread, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    message = models.TextField(verbose_name="Сообщение")
+    file = models.FileField(upload_to='chat_files/', null=True, blank=True, verbose_name="Файл")
+    is_read = models.BooleanField(default=False, verbose_name="Прочитано")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Сообщение чата"
+        verbose_name_plural = "Сообщения чатов"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.sender.username}: {self.message[:50]}"

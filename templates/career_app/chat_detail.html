@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        Чат: {{ thread.get_subject }}
+                        <br>
+                        <small class="text-muted">
+                            {% if user.userprofile.role == 'applicant' %}
+                                С: {{ other_user.get_full_name|default:other_user.username }}
+                            {% else %}
+                                С: {{ thread.applicant.first_name }} {{ thread.applicant.last_name }}
+                            {% endif %}
+                        </small>
+                    </h5>
+                    <a href="{% url 'chat_list' %}" class="btn btn-outline-secondary btn-sm">← Назад к чатам</a>
+                </div>
+
+                <div class="card-body" style="height: 400px; overflow-y: auto;">
+                    {% for message in messages_list %}
+                    <div class="mb-3 {% if message.sender == user %}text-end{% endif %}">
+                        <div class="d-flex {% if message.sender == user %}justify-content-end{% endif %}">
+                            <div class="{% if message.sender == user %}bg-primary text-white{% else %}bg-light{% endif %} rounded p-3" style="max-width: 70%;">
+                                <div class="message-content">
+                                    {{ message.message|linebreaks }}
+                                    {% if message.file %}
+                                    <div class="mt-2">
+                                        <a href="{{ message.file.url }}" class="{% if message.sender == user %}text-white{% else %}text-primary{% endif %}" target="_blank">
+                                            📎 {{ message.file.name|slice:"-15:" }}
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            {{ message.sender.get_full_name|default:message.sender.username }},
+                            {{ message.created_at|date:"H:i" }}
+                        </small>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-4">
+                        <p>Пока нет сообщений. Начните общение!</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="card-footer">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-9">
+                                {{ form.message|as_crispy_field }}
+                            </div>
+                            <div class="col-md-2">
+                                {{ form.file|as_crispy_field }}
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">Отправить</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.message-content {
+    word-wrap: break-word;
+}
+</style>
+{% endblock %}

@@ -253,34 +253,54 @@ def vacancy_list(request):
 
 def vacancy_detail(request, pk):
     try:
-        # Пытаемся найти опубликованную вакансию
         vacancy = Vacancy.objects.get(pk=pk, status='published')
     except Vacancy.DoesNotExist:
-        # Если вакансия не опубликована, проверяем права доступа
         vacancy = get_object_or_404(Vacancy, pk=pk)
-
-        # Проверяем, имеет ли пользователь право просматривать эту вакансию
         can_view = False
-
         if request.user.is_authenticated:
-            # HR может просматривать вакансии своей компании
             if hasattr(request.user, 'userprofile') and request.user.userprofile.role == 'hr':
                 if vacancy.company == request.user.userprofile.company:
                     can_view = True
-
-            # Администратор может просматривать все вакансии
             if hasattr(request.user, 'userprofile') and request.user.userprofile.role == 'admin':
                 can_view = True
-
         if not can_view:
             messages.error(request, 'У вас нет прав для просмотра этой вакансии или она еще не опубликована.')
             return redirect('vacancy_list')
 
-    # Проверяем, может ли пользователь откликаться на вакансию
-    can_apply = vacancy.status == 'published'
+    # Инициализируем переменные
+    has_applied = False
+    chat_thread = None
+    applicant = None
+    show_chat_button = False
 
-    if request.method == 'POST' and can_apply:
+    # Проверяем для авторизованных пользователей-соискателей
+    if request.user.is_authenticated and hasattr(request.user,
+                                                 'userprofile') and request.user.userprofile.role == 'applicant':
+        try:
+            applicant = request.user.applicant
+            # Проверяем, откликался ли уже пользователь
+            has_applied = Application.objects.filter(
+                vacancy=vacancy,
+                applicant=applicant
+            ).exists()
+
+            # Ищем существующий чат
+            if has_applied:
+                chat_thread = ChatThread.objects.filter(
+                    vacancy=vacancy,
+                    applicant=applicant,
+                    is_active=True
+                ).first()
+                if chat_thread:
+                    show_chat_button = True
+
+        except Applicant.DoesNotExist:
+            pass
+
+    # Обработка POST запроса (отклик)
+    if request.method == 'POST' and vacancy.status == 'published':
         if not request.user.is_authenticated:
+            # Обработка для неавторизованных пользователей
             applicant_form = ApplicantForm(request.POST, request.FILES)
             if applicant_form.is_valid():
                 applicant = applicant_form.save()
@@ -289,30 +309,83 @@ def vacancy_detail(request, pk):
                     applicant=applicant,
                     cover_letter=request.POST.get('cover_letter', '')
                 )
-                messages.success(request, 'Ваш отклик успешно отправлен!')
-                return redirect('vacancy_detail', pk=pk)
-        else:
-            try:
-                applicant = request.user.applicant
-                application = Application.objects.create(
-                    vacancy=vacancy,
-                    applicant=applicant,
-                    cover_letter=request.POST.get('cover_letter', '')
-                )
-                messages.success(request, 'Ваш отклик успешно отправлен!')
-                return redirect('vacancy_detail', pk=pk)
-            except Applicant.DoesNotExist:
-                messages.error(request, 'Пожалуйста, заполните ваш профиль соискателя.')
-                return redirect('create_applicant_profile')
 
+                # Создаем чат сразу
+                if vacancy.company and vacancy.company.userprofile_set.filter(role='hr').exists():
+                    hr_user = vacancy.company.userprofile_set.filter(role='hr').first().user
+                    chat_thread, created = ChatThread.get_or_create_chat(
+                        vacancy=vacancy,
+                        applicant=applicant,
+                        hr_user=hr_user
+                    )
+                    if created:
+                        ChatMessage.objects.create(
+                            thread=chat_thread,
+                            sender=applicant.user if applicant.user else None,
+                            message=request.POST.get('cover_letter',
+                                                     '') or "Здравствуйте! Я откликнулся на вашу вакансию."
+                        )
+
+                # Обновляем переменные для отображения
+                has_applied = True
+                show_chat_button = True
+                messages.success(request, 'Ваш отклик успешно отправлен! Чат создан.')
+
+        else:
+            # Обработка для авторизованных пользователей
+            if request.user.userprofile.role == 'applicant':
+                try:
+                    applicant = request.user.applicant
+
+                    if not has_applied:
+                        # Создаем отклик
+                        application = Application.objects.create(
+                            vacancy=vacancy,
+                            applicant=applicant,
+                            cover_letter=request.POST.get('cover_letter', '')
+                        )
+
+                        # Создаем чат сразу
+                        if vacancy.company and vacancy.company.userprofile_set.filter(role='hr').exists():
+                            hr_user = vacancy.company.userprofile_set.filter(role='hr').first().user
+                            chat_thread, created = ChatThread.get_or_create_chat(
+                                vacancy=vacancy,
+                                applicant=applicant,
+                                hr_user=hr_user
+                            )
+                            if created:
+                                ChatMessage.objects.create(
+                                    thread=chat_thread,
+                                    sender=request.user,
+                                    message=request.POST.get('cover_letter',
+                                                             '') or "Здравствуйте! Я откликнулся на вашу вакансию."
+                                )
+
+                        # Обновляем переменные для отображения
+                        has_applied = True
+                        show_chat_button = True
+                        messages.success(request, 'Ваш отклик успешно отправлен! Чат создан.')
+                    else:
+                        messages.info(request, 'Вы уже откликались на эту вакансию.')
+
+                except Applicant.DoesNotExist:
+                    messages.error(request, 'Пожалуйста, заполните ваш профиль соискателя.')
+                    return redirect('create_applicant_profile')
+            else:
+                messages.error(request, 'Откликаться на вакансии могут только соискатели.')
+
+    # Форма для неавторизованных пользователей
     applicant_form = ApplicantForm()
 
     context = {
         'vacancy': vacancy,
         'applicant_form': applicant_form,
-        'can_apply': can_apply,
+        'has_applied': has_applied,
+        'chat_thread': chat_thread,
+        'show_chat_button': show_chat_button,
     }
     return render(request, 'career_app/vacancy_detail.html', context)
+
 
 def internship_list(request):
     internships = Internship.objects.filter(status='published')
@@ -343,36 +416,88 @@ def internship_detail(request, pk):
         messages.error(request, 'Стажировка не найдена или еще не опубликована.')
         return redirect('vacancy_list')
 
-    # Проверяем, может ли пользователь откликаться на стажировку
-    can_apply = False
+    # Инициализируем переменные
+    has_applied = False
+    chat_thread = None
     applicant = None
+    show_chat_button = False
 
-    if request.user.is_authenticated:
-        user_profile = request.user.userprofile
-        # На стажировки могут откликаться только соискатели
-        if user_profile.role == 'applicant':
+    # Проверяем для авторизованных пользователей-соискателей
+    if request.user.is_authenticated and hasattr(request.user,
+                                                 'userprofile') and request.user.userprofile.role == 'applicant':
+        try:
+            applicant = request.user.applicant
+            # Проверяем, откликался ли уже пользователь
+            has_applied = InternshipResponse.objects.filter(
+                internship=internship,
+                applicant=applicant
+            ).exists()
+
+            # Ищем существующий чат
+            if has_applied:
+                chat_thread = ChatThread.objects.filter(
+                    internship=internship,
+                    applicant=applicant,
+                    is_active=True
+                ).first()
+                if chat_thread:
+                    show_chat_button = True
+
+        except Applicant.DoesNotExist:
+            pass
+
+    # Обработка POST запроса (отклик)
+    if request.method == 'POST' and internship.status == 'published':
+        if request.user.is_authenticated and request.user.userprofile.role == 'applicant':
             try:
                 applicant = request.user.applicant
-                can_apply = True
-            except Applicant.DoesNotExist:
-                can_apply = False
 
-    if request.method == 'POST' and can_apply:
-        form = InternshipResponseForm(request.POST)
-        if form.is_valid():
-            response = form.save(commit=False)
-            response.internship = internship
-            response.applicant = applicant
-            response.save()
-            messages.success(request, 'Ваш отклик на стажировку успешно отправлен!')
-            return redirect('internship_detail', pk=pk)
-    else:
-        form = InternshipResponseForm()
+                if not has_applied:
+                    # Создаем отклик
+                    response = InternshipResponse.objects.create(
+                        internship=internship,
+                        applicant=applicant,
+                        cover_letter=request.POST.get('cover_letter', '')
+                    )
+
+                    # Создаем чат сразу
+                    if internship.institution and internship.institution.userprofile_set.filter(
+                            role='university').exists():
+                        university_user = internship.institution.userprofile_set.filter(role='university').first().user
+                        chat_thread, created = ChatThread.get_or_create_chat(
+                            internship=internship,
+                            applicant=applicant,
+                            university_user=university_user
+                        )
+                        if created:
+                            ChatMessage.objects.create(
+                                thread=chat_thread,
+                                sender=request.user,
+                                message=request.POST.get('cover_letter',
+                                                         '') or "Здравствуйте! Я откликнулся на вашу стажировку."
+                            )
+
+                    # Обновляем переменные для отображения
+                    has_applied = True
+                    show_chat_button = True
+                    messages.success(request, 'Ваш отклик на стажировку успешно отправлен! Чат создан.')
+                else:
+                    messages.info(request, 'Вы уже откликались на эту стажировку.')
+
+            except Applicant.DoesNotExist:
+                messages.error(request, 'Пожалуйста, заполните ваш профиль соискателя.')
+                return redirect('create_applicant_profile')
+        else:
+            messages.error(request, 'Для отклика на стажировку необходимо войти в систему как соискатель.')
+
+    form = InternshipResponseForm()
 
     context = {
         'internship': internship,
         'form': form,
-        'can_apply': can_apply,
+        'has_applied': has_applied,
+        'chat_thread': chat_thread,
+        'show_chat_button': show_chat_button,
         'applicant': applicant,
     }
     return render(request, 'career_app/internship_detail.html', context)
@@ -447,21 +572,30 @@ def hr_dashboard(request):
     }
     return render(request, 'career_app/hr_dashboard.html', context)
 
+
 @login_required
 @user_passes_test(is_university)
 def university_dashboard(request):
     institution = request.user.userprofile.institution
     internships = Internship.objects.filter(institution=institution)
 
+    # Получаем отклики на стажировки
+    internship_responses = InternshipResponse.objects.filter(
+        internship__institution=institution
+    ).select_related('applicant', 'internship').order_by('-applied_at')
+
     # Статистика
     internships_published = internships.filter(status='published').count()
     internships_moderation = internships.filter(status='moderation').count()
+    total_responses = internship_responses.count()
 
     context = {
         'institution': institution,
         'internships': internships,
+        'internship_responses': internship_responses,
         'internships_published': internships_published,
         'internships_moderation': internships_moderation,
+        'total_responses': total_responses,
     }
     return render(request, 'career_app/university_dashboard.html', context)
 
@@ -862,3 +996,158 @@ def approve_role(request, request_id, action):
 
     role_request.save()
     return redirect('role_approval_list')
+
+
+# views.py - добавить новые представления
+@login_required
+def chat_list(request):
+    """Список чатов пользователя"""
+    user_profile = request.user.userprofile
+
+    if user_profile.role == 'applicant':
+        # Для соискателя - чаты с HR и университетами
+        threads = ChatThread.objects.filter(
+            applicant__user=request.user,
+            is_active=True
+        ).select_related('vacancy', 'internship', 'hr_user', 'university_user')
+
+    elif user_profile.role == 'hr':
+        # Для HR - чаты по вакансиям его компании
+        threads = ChatThread.objects.filter(
+            vacancy__company=user_profile.company,
+            is_active=True
+        ).select_related('vacancy', 'applicant', 'hr_user')
+
+    elif user_profile.role == 'university':
+        # Для университета - чаты по стажировкам его учреждения
+        threads = ChatThread.objects.filter(
+            internship__institution=user_profile.institution,
+            is_active=True
+        ).select_related('internship', 'applicant', 'university_user')
+
+    else:
+        threads = ChatThread.objects.none()
+
+    # Помечаем непрочитанные сообщения
+    for thread in threads:
+        thread.unread_count = thread.messages.filter(
+            is_read=False
+        ).exclude(sender=request.user).count()
+
+    context = {
+        'threads': threads,
+    }
+    return render(request, 'career_app/chat_list.html', context)
+
+
+@login_required
+def chat_detail(request, thread_id):
+    """Детальная страница чата"""
+    thread = get_object_or_404(ChatThread, id=thread_id)
+
+    # Проверка прав доступа к чату
+    user_profile = request.user.userprofile
+    has_access = False
+
+    if user_profile.role == 'applicant':
+        has_access = thread.applicant.user == request.user
+    elif user_profile.role == 'hr':
+        has_access = thread.vacancy and thread.vacancy.company == user_profile.company
+    elif user_profile.role == 'university':
+        has_access = thread.internship and thread.internship.institution == user_profile.institution
+    elif user_profile.role == 'admin':
+        has_access = True
+
+    if not has_access:
+        messages.error(request, 'У вас нет доступа к этому чату.')
+        return redirect('chat_list')
+
+    # Помечаем сообщения как прочитанные
+    thread.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
+
+    if request.method == 'POST':
+        form = ChatMessageForm(request.POST, request.FILES)
+        if form.is_valid():
+            message = form.save(commit=False)
+            message.thread = thread
+            message.sender = request.user
+            message.save()
+
+            # Обновляем время последней активности чата
+            thread.save()
+
+            return redirect('chat_detail', thread_id=thread_id)
+    else:
+        form = ChatMessageForm()
+
+    messages_list = thread.messages.all().select_related('sender')
+
+    context = {
+        'thread': thread,
+        'messages_list': messages_list,
+        'form': form,
+        'other_user': thread.get_other_participant(request.user),
+    }
+    return render(request, 'career_app/chat_detail.html', context)
+
+
+@login_required
+def create_chat_from_application(request, application_id):
+    """Создание чата из отклика на вакансию"""
+    application = get_object_or_404(Application, id=application_id)
+
+    # Проверяем, что пользователь - HR компании вакансии
+    if not (request.user.userprofile.role == 'hr' and
+            application.vacancy.company == request.user.userprofile.company):
+        messages.error(request, 'У вас нет прав для создания чата.')
+        return redirect('hr_dashboard')
+
+    # Создаем или получаем существующий чат
+    thread, created = ChatThread.objects.get_or_create(
+        vacancy=application.vacancy,
+        applicant=application.applicant,
+        hr_user=request.user,
+        defaults={'is_active': True}
+    )
+
+    if created:
+        # Создаем первое сообщение от HR
+        ChatMessage.objects.create(
+            thread=thread,
+            sender=request.user,
+            message=f"Здравствуйте! Благодарим за отклик на вакансию '{application.vacancy.title}'. Давайте обсудим вашу кандидатуру."
+        )
+        messages.success(request, 'Чат создан!')
+
+    return redirect('chat_detail', thread_id=thread.id)
+
+
+@login_required
+def create_chat_from_internship_response(request, response_id):
+    """Создание чата из отклика на стажировку"""
+    response = get_object_or_404(InternshipResponse, id=response_id)
+
+    # Проверяем, что пользователь - представитель университета
+    if not (request.user.userprofile.role == 'university' and
+            response.internship.institution == request.user.userprofile.institution):
+        messages.error(request, 'У вас нет прав для создания чата.')
+        return redirect('university_dashboard')
+
+    # Создаем или получаем существующий чат
+    thread, created = ChatThread.objects.get_or_create(
+        internship=response.internship,
+        applicant=response.applicant,
+        university_user=request.user,
+        defaults={'is_active': True}
+    )
+
+    if created:
+        # Создаем первое сообщение от университета
+        ChatMessage.objects.create(
+            thread=thread,
+            sender=request.user,
+            message=f"Здравствуйте! Благодарим за интерес к стажировке '{response.internship.title}'. Давайте обсудим детали."
+        )
+        messages.success(request, 'Чат создан!')
+
+    return redirect('chat_detail', thread_id=thread.id)
