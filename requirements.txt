@@ -4,3 +4,7 @@ python-decouple==3.8
 django-crispy-forms==2.0
 crispy-bootstrap5==0.7
 django-filter==23.3
+pandas
+openpyxl
+xlsxwriter
+reportlab
