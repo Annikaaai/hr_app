@@ -54,23 +54,23 @@
             <div class="filter-bg-element element-1" style="position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; background: rgba(76, 175, 80, 0.1); border-radius: 50%; animation: float 6s ease-in-out infinite;"></div>
 
             <!-- Search Bar -->
-<div class="search-section mb-4">
-    <form method="get" class="search-form" id="searchForm">
-        <div class="input-group" style="position: relative;">
-            <span class="input-group-icon" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-size: 1.1rem;">
-                <i class="fas fa-search"></i>
-            </span>
-            <input type="text" name="q" class="form-control"
-                   placeholder="Поиск по названию, описанию или компании..."
-                   value="{% if query and query != 'None' %}{{ query }}{% endif %}"
-                   style="padding-left: 50px; height: 55px; border-radius: 12px; border: 2px solid #e9ecef; font-size: 1rem; transition: all 0.3s ease;"
-                   id="searchInput">
-            <button class="btn-search" type="submit" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); border: none; color: white; padding: 0 1.5rem; border-radius: 12px; font-weight: 600; font-size: 1rem; transition: all 0.3s ease; margin-left: 0.8rem;">
-                Найти
-            </button>
-        </div>
-    </form>
-</div>
+            <div class="search-section mb-4">
+                <form method="get" class="search-form" id="searchForm">
+                    <div class="input-group" style="position: relative;">
+                        <span class="input-group-icon" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-size: 1.1rem;">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" name="q" class="form-control"
+                               placeholder="Поиск по названию, описанию или компании..."
+                               value="{% if query and query != 'None' %}{{ query }}{% endif %}"
+                               style="padding-left: 50px; height: 55px; border-radius: 12px; border: 2px solid #e9ecef; font-size: 1rem; transition: all 0.3s ease;"
+                               id="searchInput">
+                        <button class="btn-search" type="submit" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); border: none; color: white; padding: 0 1.5rem; border-radius: 12px; font-weight: 600; font-size: 1rem; transition: all 0.3s ease; margin-left: 0.8rem;">
+                            Найти
+                        </button>
+                    </div>
+                </form>
+            </div>
 
             <!-- Type Filters -->
             <div class="type-filters mb-4">
@@ -182,11 +182,11 @@
                 <div class="d-flex align-items-center flex-wrap gap-2">
                     <strong class="me-2" style="color: #1a1a1a; font-size: 0.9rem;">Активные фильтры:</strong>
                     {% if query and query != 'None' %}
-<span class="active-filter-badge" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; padding: 0.4rem 0.8rem; border-radius: 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
-    Поиск: "{{ query }}"
-    <a href="#" class="text-white" style="text-decoration: none; opacity: 0.8; transition: opacity 0.3s ease;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'" onclick="removeSearch(event)">×</a>
-</span>
-{% endif %}
+                    <span class="active-filter-badge" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; padding: 0.4rem 0.8rem; border-radius: 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                        Поиск: "{{ query }}"
+                        <a href="#" class="text-white" style="text-decoration: none; opacity: 0.8; transition: opacity 0.3s ease;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'" onclick="removeSearch(event)">×</a>
+                    </span>
+                    {% endif %}
 
                     {% if filter_type != 'all' %}
                     <span class="active-filter-badge" style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); color: white; padding: 0.4rem 0.8rem; border-radius: 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">

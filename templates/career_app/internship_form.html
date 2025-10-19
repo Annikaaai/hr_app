@@ -1,5 +1,3 @@
-[file name]: internship_form.html
-[file content begin]
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 {% load static %}
@@ -24,121 +22,6 @@
                         Разместите предложение о стажировке для талантливых студентов
                     </p>
                 </div>
-                <div class="card-body">
-                    <form method="post" id="internship-form">
-                        {% csrf_token %}
-
-                        <!-- Показываем ошибки формы -->
-                        {% if form.errors %}
-                        <div class="alert alert-danger">
-                            <strong>Пожалуйста, исправьте ошибки:</strong>
-                            <ul>
-                                {% for field, errors in form.errors.items %}
-                                    {% for error in errors %}
-                                        <li>{{ error }}</li>
-                                    {% endfor %}
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
-
-                        <!-- Основные поля -->
-                        <div class="mb-3">
-                            {{ form.title|as_crispy_field }}
-                        </div>
-
-                        <!-- Категории -->
-                        <div class="mb-3">
-                            {{ form.main_category|as_crispy_field }}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.subcategory|as_crispy_field }}
-                        </div>
-
-                        <!-- Количество студентов и период -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.student_count|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.period|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        <!-- Место стажировки -->
-                        <div class="mb-3">
-                            {{ form.location|as_crispy_field }}
-                        </div>
-
-                        <!-- Описание и требования -->
-                        <div class="mb-3">
-                            {{ form.description|as_crispy_field }}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.requirements|as_crispy_field }}
-                        </div>
-
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary">Отправить на модерацию</button>
-                            <a href="{% url 'university_dashboard' %}" class="btn btn-secondary">Отмена</a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-$(document).ready(function() {
-    // Функция для загрузки подкатегорий
-    function loadSubcategories(mainCategoryId) {
-        var subcategorySelect = $('#id_subcategory');
-
-        if (mainCategoryId) {
-            $.ajax({
-                url: '{% url "get_subcategories" %}',
-                data: {
-                    'main_category_id': mainCategoryId
-                },
-                success: function(data) {
-                    subcategorySelect.empty();
-                    subcategorySelect.append('<option value="">--- Выберите подкатегорию ---</option>');
-                    $.each(data.subcategories, function(index, category) {
-                        subcategorySelect.append(
-                            $('<option></option>').attr('value', category.id).text(category.name)
-                        );
-                    });
-                    subcategorySelect.prop('disabled', false);
-                },
-                error: function() {
-                    subcategorySelect.empty();
-                    subcategorySelect.append('<option value="">Ошибка загрузки подкатегорий</option>');
-                }
-            });
-        } else {
-            subcategorySelect.empty();
-            subcategorySelect.append('<option value="">--- Сначала выберите основную категорию ---</option>');
-            subcategorySelect.prop('disabled', true);
-        }
-    }
-
-    // Обработчик изменения основной категории
-    $('#id_main_category').change(function() {
-        var mainCategoryId = $(this).val();
-        loadSubcategories(mainCategoryId);
-    });
-
-    // При загрузке страницы, если есть выбранная основная категория, загружаем подкатегории
-    var initialMainCategory = $('#id_main_category').val();
-    if (initialMainCategory) {
-        loadSubcategories(initialMainCategory);
-    }
-});
-</script>
             </div>
         </div>
     </div>
@@ -148,7 +31,7 @@ $(document).ready(function() {
 <section class="py-5" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-8">
+            <div class="col-lg-10">
                 <div class="card innovation-feature" style="border: none; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.1);">
                     <div class="card-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); border: none; padding: 2rem;">
                         <h4 class="mb-0 text-white text-center">
@@ -167,25 +50,157 @@ $(document).ready(function() {
                             </div>
                         </div>
 
-                        <form method="post" class="innovation-features">
+                        <!-- Показываем ошибки формы -->
+                        {% if form.errors %}
+                        <div class="alert alert-danger mb-4" style="border-radius: 12px;">
+                            <strong>Пожалуйста, исправьте ошибки:</strong>
+                            <ul class="mb-0 mt-2">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <form method="post" id="internship-form" class="innovation-features">
                             {% csrf_token %}
 
-                            {% for field in form %}
+                            <!-- Основные поля -->
                             <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
                                 <div class="feature-content w-100">
-                                    <label class="form-label fw-bold text-dark mb-2">{{ field.label }}</label>
-                                    {{ field }}
-                                    {% if field.help_text %}
-                                    <div class="form-text text-muted mt-2">{{ field.help_text }}</div>
+                                    <label class="form-label fw-bold text-dark mb-2">{{ form.title.label }}</label>
+                                    {{ form.title }}
+                                    {% if form.title.help_text %}
+                                    <div class="form-text text-muted mt-2">{{ form.title.help_text }}</div>
                                     {% endif %}
-                                    {% if field.errors %}
+                                    {% if form.title.errors %}
                                     <div class="text-danger small mt-2">
-                                        {{ field.errors }}
+                                        {{ form.title.errors }}
                                     </div>
                                     {% endif %}
                                 </div>
                             </div>
-                            {% endfor %}
+
+                            <!-- Категории -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                        <div class="feature-content w-100">
+                                            <label class="form-label fw-bold text-dark mb-2">{{ form.main_category.label }}</label>
+                                            {{ form.main_category }}
+                                            {% if form.main_category.help_text %}
+                                            <div class="form-text text-muted mt-2">{{ form.main_category.help_text }}</div>
+                                            {% endif %}
+                                            {% if form.main_category.errors %}
+                                            <div class="text-danger small mt-2">
+                                                {{ form.main_category.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                        <div class="feature-content w-100">
+                                            <label class="form-label fw-bold text-dark mb-2">{{ form.subcategory.label }}</label>
+                                            {{ form.subcategory }}
+                                            {% if form.subcategory.help_text %}
+                                            <div class="form-text text-muted mt-2">{{ form.subcategory.help_text }}</div>
+                                            {% endif %}
+                                            {% if form.subcategory.errors %}
+                                            <div class="text-danger small mt-2">
+                                                {{ form.subcategory.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Количество студентов и период -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                        <div class="feature-content w-100">
+                                            <label class="form-label fw-bold text-dark mb-2">{{ form.student_count.label }}</label>
+                                            {{ form.student_count }}
+                                            {% if form.student_count.help_text %}
+                                            <div class="form-text text-muted mt-2">{{ form.student_count.help_text }}</div>
+                                            {% endif %}
+                                            {% if form.student_count.errors %}
+                                            <div class="text-danger small mt-2">
+                                                {{ form.student_count.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                        <div class="feature-content w-100">
+                                            <label class="form-label fw-bold text-dark mb-2">{{ form.period.label }}</label>
+                                            {{ form.period }}
+                                            {% if form.period.help_text %}
+                                            <div class="form-text text-muted mt-2">{{ form.period.help_text }}</div>
+                                            {% endif %}
+                                            {% if form.period.errors %}
+                                            <div class="text-danger small mt-2">
+                                                {{ form.period.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Место стажировки -->
+                            <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                <div class="feature-content w-100">
+                                    <label class="form-label fw-bold text-dark mb-2">{{ form.location.label }}</label>
+                                    {{ form.location }}
+                                    {% if form.location.help_text %}
+                                    <div class="form-text text-muted mt-2">{{ form.location.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.location.errors %}
+                                    <div class="text-danger small mt-2">
+                                        {{ form.location.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Описание и требования -->
+                            <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                <div class="feature-content w-100">
+                                    <label class="form-label fw-bold text-dark mb-2">{{ form.description.label }}</label>
+                                    {{ form.description }}
+                                    {% if form.description.help_text %}
+                                    <div class="form-text text-muted mt-2">{{ form.description.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.description.errors %}
+                                    <div class="text-danger small mt-2">
+                                        {{ form.description.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="innovation-feature" style="background: white; margin-bottom: 1.5rem; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef;">
+                                <div class="feature-content w-100">
+                                    <label class="form-label fw-bold text-dark mb-2">{{ form.requirements.label }}</label>
+                                    {{ form.requirements }}
+                                    {% if form.requirements.help_text %}
+                                    <div class="form-text text-muted mt-2">{{ form.requirements.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.requirements.errors %}
+                                    <div class="text-danger small mt-2">
+                                        {{ form.requirements.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
 
                             <div class="innovation-actions mt-4 text-center">
                                 <button type="submit" class="btn btn-primary-lg me-3">
@@ -227,7 +242,7 @@ $(document).ready(function() {
     line-height: 1.4;
 }
 
-.form-control, .form-select, .form-textarea {
+.form-control, .form-select, textarea {
     border: 2px solid #e9ecef;
     border-radius: 12px;
     padding: 0.75rem 1rem;
@@ -236,7 +251,7 @@ $(document).ready(function() {
     width: 100%;
 }
 
-.form-control:focus, .form-select:focus, .form-textarea:focus {
+.form-control:focus, .form-select:focus, textarea:focus {
     border-color: #4caf50;
     box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
     outline: none;
@@ -317,10 +332,61 @@ $(document).ready(function() {
     color: white;
     transform: translateY(-2px);
 }
+
+.alert-danger {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
 </style>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+$(document).ready(function() {
+    // Функция для загрузки подкатегорий
+    function loadSubcategories(mainCategoryId) {
+        var subcategorySelect = $('#id_subcategory');
+
+        if (mainCategoryId) {
+            $.ajax({
+                url: '{% url "get_subcategories" %}',
+                data: {
+                    'main_category_id': mainCategoryId
+                },
+                success: function(data) {
+                    subcategorySelect.empty();
+                    subcategorySelect.append('<option value="">--- Выберите подкатегорию ---</option>');
+                    $.each(data.subcategories, function(index, category) {
+                        subcategorySelect.append(
+                            $('<option></option>').attr('value', category.id).text(category.name)
+                        );
+                    });
+                    subcategorySelect.prop('disabled', false);
+                },
+                error: function() {
+                    subcategorySelect.empty();
+                    subcategorySelect.append('<option value="">Ошибка загрузки подкатегорий</option>');
+                }
+            });
+        } else {
+            subcategorySelect.empty();
+            subcategorySelect.append('<option value="">--- Сначала выберите основную категорию ---</option>');
+            subcategorySelect.prop('disabled', true);
+        }
+    }
+
+    // Обработчик изменения основной категории
+    $('#id_main_category').change(function() {
+        var mainCategoryId = $(this).val();
+        loadSubcategories(mainCategoryId);
+    });
+
+    // При загрузке страницы, если есть выбранная основная категория, загружаем подкатегории
+    var initialMainCategory = $('#id_main_category').val();
+    if (initialMainCategory) {
+        loadSubcategories(initialMainCategory);
+    }
+
     // Анимация появления формы
     const formElements = document.querySelectorAll('.innovation-feature');
     formElements.forEach((element, index) => {
@@ -341,4 +407,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-[file content end]
