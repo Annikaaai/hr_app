@@ -23,6 +23,16 @@ INSTALLED_APPS = [
     'django_filters',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://tech-talent-hub.up.railway.app',
+    'https://*.railway.app',
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
