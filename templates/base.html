@@ -345,6 +345,7 @@
     </li>
 
     {% if user.is_authenticated %}
+
         {% if user.userprofile.role == 'admin' %}
             <li class="nav-item admin">
                 <a class="nav-link" href="{% url 'moderation_list' %}">
@@ -398,6 +399,12 @@
                 </a>
             </li>
         {% endif %}
+            <li class="nav-item admin">
+                <a class="nav-link" href="{% url 'chat_list' %}">
+                    <i class="fas fa-shield-alt"></i>
+                    Чаты
+                </a>
+            </li>
     {% endif %}
 </ul>
 
